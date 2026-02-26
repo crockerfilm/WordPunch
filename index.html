@@ -417,7 +417,7 @@ function applyPreset(key){
   S.preset = key;
   qsa('.preset').forEach(x=>x.classList.toggle('active', x.dataset.preset===key));
 
-  el.mode.value = 'pop';
+  el.mode.value = 'karaoke';
   el.fontSelect.value = p.font;
   el.size.value = p.size; el.sizeVal.textContent = p.size;
 
