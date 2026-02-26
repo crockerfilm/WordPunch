@@ -36,7 +36,7 @@
   .preset:hover{border-color:rgba(245,197,24,.55)}
   .preset.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(245,197,24,.25) inset}
   .pname{font-size:11px;font-weight:900;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
-  .pprev{margin-top:6px;font-weight:900;line-height:1.1}
+  .pprev{margin-top:6px;font-weight:900;line-height:1.2;min-height:28px;display:flex;align-items:center}
   .pdesc{margin-top:4px;color:var(--muted);font-size:11px}
   label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px;font-weight:700}
   select,input[type=text]{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:#0f0f15;color:var(--text);outline:none}
@@ -117,7 +117,30 @@
           <select id="mode">
             <option value="karaoke">Karaoke Highlight</option>
             <option value="pop">Word Pop</option>
+            <option value="wordbox">Word Box Highlight</option>
+            <option value="serifade">Serif Fade (elegant)</option>
+            <option value="multiline">Multi-line Wrap</option>
+            <option value="ghostline">Ghost Line Below</option>
+            <option value="lettertype">Letter Typewriter</option>
+            <option value="twobox">Two-tone Box</option>
           </select>
+        </div>
+
+        <div class="field">
+          <label>Word Animation</label>
+          <select id="animMode">
+            <option value="none">None (instant)</option>
+            <option value="slam">Slam In (one by one)</option>
+            <option value="fadeup">Fade Slide Up</option>
+            <option value="scale">Scale Pop</option>
+            <option value="bounce">Bounce Drop</option>
+            <option value="typewriter">Typewriter</option>
+          </select>
+        </div>
+
+        <div class="field" id="animSpeedField">
+          <label>Anim Speed: <span id="animSpeedVal">0.08</span>s per word</label>
+          <input class="slider" type="range" id="animSpeed" min="20" max="300" value="80">
         </div>
 
         <div class="row">
@@ -346,14 +369,26 @@ function groupWords(words, size){
    State
    ========================= */
 const PRESETS = {
-  beast:{name:"MR BEAST", desc:"Bold impact · gold", font:"Impact", size:90, base:"#FFFFFF", hi:"#FFD700", stroke:true, strokeColor:"#000000", strokeW:4, shadow:false, shadowColor:"#000000", shadowBlur:6, bg:false, bgColor:"#000000", bgOp:70, caps:true, vpos:"center"},
-  cenat:{name:"KAI CENAT", desc:"Red pop · energy", font:"Arial Black", size:85, base:"#FFFFFF", hi:"#FF3B3B", stroke:true, strokeColor:"#000000", strokeW:3, shadow:true, shadowColor:"#000000", shadowBlur:10, bg:false, bgColor:"#000000", bgOp:70, caps:true, vpos:"center"},
-  clean:{name:"CLEAN", desc:"Minimal white", font:"DM Sans", size:64, base:"#FFFFFF", hi:"#4EA8FE", stroke:false, strokeColor:"#000000", strokeW:0, shadow:true, shadowColor:"#000000", shadowBlur:12, bg:true, bgColor:"#000000", bgOp:55, caps:false, vpos:"bottom"},
-  neon:{name:"NEON", desc:"Glow green", font:"Impact", size:85, base:"#FFFFFF", hi:"#00FF88", stroke:true, strokeColor:"#004422", strokeW:2, shadow:true, shadowColor:"#00FF88", shadowBlur:18, bg:false, bgColor:"#000000", bgOp:70, caps:true, vpos:"center"},
+  punch:  {name:"PUNCH",    desc:"Impact · gold slam",     font:"Impact",          size:90, base:"#FFFFFF", hi:"#FFD700", stroke:true,  strokeColor:"#000000", strokeW:5,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"slam",       mode:"karaoke"},
+  fire:   {name:"FIRE",     desc:"Bold red · scale pop",   font:"Arial Black",     size:84, base:"#FFFFFF", hi:"#FF3B3B", stroke:true,  strokeColor:"#000000", strokeW:4,  shadow:true,  shadowColor:"#FF3300", shadowBlur:14, bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"scale",      mode:"karaoke"},
+  pill:   {name:"PILL",     desc:"Dark pill · fade up",    font:"Montserrat",      size:62, base:"#FFFFFF", hi:"#4EA8FE", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#000000", bgOp:68,  caps:false, vpos:"bottom", animMode:"fadeup",     mode:"karaoke"},
+  neon:   {name:"NEON",     desc:"Cyan glow · bounce",     font:"Bebas Neue",      size:92, base:"#FFFFFF", hi:"#00F5FF", stroke:true,  strokeColor:"#003040", strokeW:2,  shadow:true,  shadowColor:"#00F5FF", shadowBlur:22, bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"bounce",     mode:"karaoke"},
+  bluebox:{name:"BLUE BOX", desc:"Highlight bg box",       font:"Arial Black",     size:70, base:"#FFFFFF", hi:"#1a1a2e", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#4A8FE7", bgOp:100, caps:false, vpos:"center", animMode:"none",       mode:"karaoke"},
+  wordbox:{name:"WORD BOX", desc:"Per-word box highlight", font:"Arial Black",     size:80, base:"#FFFFFF", hi:"#F5C518", stroke:true,  strokeColor:"#000000", strokeW:3,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:false, vpos:"center", animMode:"none",       mode:"wordbox"},
+  serif:  {name:"SERIF",    desc:"Elegant serif fade",     font:"Playfair Display",size:68, base:"#FFFFFF", hi:"#888888", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:true,  shadowColor:"#000000", shadowBlur:8,  bg:false, bgColor:"#000000", bgOp:0,   caps:false, vpos:"center", animMode:"none",       mode:"serifade"},
+  ghost:  {name:"GHOST",    desc:"Typewriter · minimal",   font:"Courier New",     size:58, base:"#AAAAAA", hi:"#FFFFFF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:0,   caps:false, vpos:"center", animMode:"typewriter", mode:"karaoke"},
+  // screenshot 1: yellow+orange Impact, white stroke, multiline
+  voltage:{name:"VOLTAGE",  desc:"Impact · yellow/orange",  font:"Impact",          size:88, base:"#FFE600", hi:"#FF8C00", stroke:true,  strokeColor:"#FFFFFF", strokeW:4,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:0,   caps:true,  vpos:"center", animMode:"none",       mode:"multiline"},
+  // screenshot 2: teal bg box, black bold, large ghost word below
+  mint:   {name:"MINT",     desc:"Teal box · ghost word",   font:"Arial Black",     size:68, base:"#000000", hi:"#000000", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#7EDDD4", bgOp:100, caps:true,  vpos:"center", animMode:"none",       mode:"ghostline"},
+  // screenshot 3: blue chunky font, blue stroke, white bg, letter typewriter
+  bubble: {name:"BUBBLE",   desc:"Blue rounded · letter type", font:"Fredoka One",  size:82, base:"#FFFFFF", hi:"#4EA8FE", stroke:true,  strokeColor:"#1a4fa0", strokeW:3,  shadow:true,  shadowColor:"#1a4fa0", shadowBlur:10, bg:false, bgColor:"#FFFFFF", bgOp:0,   caps:false, vpos:"center", animMode:"none",       mode:"lettertype"},
+  // screenshot 4: light grey pill bg, dark/muted two-tone, border
+  slate:  {name:"SLATE",    desc:"Grey box · two-tone",      font:"Arial Black",    size:66, base:"#222222", hi:"#888888", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#E0E0E0", bgOp:100, caps:true,  vpos:"center", animMode:"none",       mode:"twobox"},
 };
 
 const S = {
-  preset:"beast",
+  preset:"punch",
   entries:[],
   words:[],
   groups:[],
@@ -399,7 +434,8 @@ const el = {
   now: qs('#now'),
   ov: qs('#ov'), barFill: qs('#barFill'), ovTxt: qs('#ovTxt'),
   dl: qs('#dl'), dlA: qs('#dlA'), dlHint: qs('#dlHint'),
-  renderBg: qs('#renderBg'), renderHint: qs('#renderHint')
+  renderBg: qs('#renderBg'), renderHint: qs('#renderHint'),
+  animMode: qs('#animMode'), animSpeed: qs('#animSpeed'), animSpeedVal: qs('#animSpeedVal'),
 };
 
 function setStatus(type, msg){
@@ -443,6 +479,9 @@ function applyPreset(key){
   toggle(el.tCaps, p.caps);
   el.vpos.value = p.vpos;
 
+  if(p.animMode !== undefined){ el.animMode.value = p.animMode; }
+  if(p.mode !== undefined){ el.mode.value = p.mode; }
+
   regroup();
   drawAt(S.time);
 }
@@ -452,13 +491,35 @@ function buildPresets(){
   const frag=document.createDocumentFragment();
   for(const [k,p] of Object.entries(PRESETS)){
     const d=document.createElement('div');
-    d.className='preset'+(k==='beast'?' active':'');
+    d.className='preset'+(k==='punch'?' active':'');
     d.dataset.preset=k;
+    // build mini preview reflecting the preset's visual style
+    const bgStyle = p.bg ? `background:${p.bgColor};opacity:${p.bgOp/100};border-radius:6px;padding:2px 6px;display:inline-block;` : '';
+    const wordStyle = `font-family:'${p.font}',sans-serif;font-size:${p.mode==='serifade'?16:20}px;font-weight:${p.mode==='serifade'?'400':'900'};`;
+    const hiStyle = `color:${p.hi};-webkit-text-stroke:${p.stroke?'1.5px '+p.strokeColor:'0px transparent'};text-shadow:${p.shadow?'0 0 8px '+p.shadowColor:'none'};`;
+    const baseStyle = `color:${p.base};-webkit-text-stroke:${p.stroke?'1.5px '+p.strokeColor:'0px transparent'};`;
+    const previewBg = p.bg ? `background:${p.bgColor}${Math.round(p.bgOp*2.55).toString(16).padStart(2,'0')};border-radius:6px;padding:1px 7px;` : '';
+
+    let previewHtml;
+    if(p.mode==='wordbox'){
+      previewHtml = `<span style="${wordStyle}${baseStyle}">OH </span><span style="${wordStyle}color:#000;background:${p.hi};border-radius:4px;padding:0 3px;">WOW</span>`;
+    } else if(p.mode==='serifade'){
+      previewHtml = `<span style="${wordStyle}font-weight:400;color:#fff;">OH </span><span style="${wordStyle}font-weight:400;color:#888;">WOW</span>`;
+    } else if(p.mode==='ghostline' || p.mode==='twobox'){
+      const boxBg = p.bgColor + Math.round(p.bgOp*2.55).toString(16).padStart(2,'0');
+      const border = p.mode==='twobox' ? ';border:1.5px solid rgba(0,0,0,0.18)' : '';
+      previewHtml = `<span style="background:${boxBg};border-radius:6px;padding:2px 7px${border};display:inline-block;"><span style="${wordStyle}color:${p.base};">OH </span><span style="${wordStyle}color:${p.hi};">WOW</span></span>`;
+    } else if(p.mode==='multiline'){
+      previewHtml = `<span style="${wordStyle}${baseStyle}">OH </span><span style="${wordStyle}${hiStyle}">WOW</span>`;
+    } else if(p.mode==='lettertype'){
+      previewHtml = `<span style="${wordStyle}${hiStyle}">OH</span><span style="${wordStyle}color:${p.hi};opacity:0.3;"> WO_</span>`;
+    } else {
+      previewHtml = `<span style="${previewBg}"><span style="${wordStyle}${baseStyle}">OH </span><span style="${wordStyle}${hiStyle}">WOW</span></span>`;
+    }
+
     d.innerHTML = `
       <div class="pname">${p.name}</div>
-      <div class="pprev" style="font-family:${p.font}, sans-serif; font-size:22px">
-        <span style="color:${p.hi};-webkit-text-stroke:${p.stroke?1.2:0}px ${p.strokeColor}">NO WAY!</span>
-      </div>
+      <div class="pprev">${previewHtml}</div>
       <div class="pdesc">${p.desc}</div>
     `;
     d.addEventListener('click',()=>applyPreset(k));
@@ -519,7 +580,7 @@ document.head.appendChild(glink);
 document.fonts.ready.then(()=> drawAt(S.time));
 
 buildPresets();
-applyPreset('beast');
+applyPreset('punch');
 
 /* File drop/browse */
 function handleSrtFile(file){
@@ -619,6 +680,13 @@ el.renderBg.addEventListener('change',()=>{
   drawAt(S.time);
 });
 
+el.animMode.addEventListener('change',()=>drawAt(S.time));
+el.animSpeed.addEventListener('input',()=>{
+  const v = (+el.animSpeed.value/1000).toFixed(2);
+  el.animSpeedVal.textContent = v;
+  drawAt(S.time);
+});
+
 /* =========================
    Drawing functions
    ========================= */
@@ -655,13 +723,11 @@ function getActiveGroup(t){
 function drawAt(t){
   S.time = Math.max(0, Math.min(S.duration||0, t));
   el.tcCur.textContent = fmtTC(S.time);
-  // background: preview uses selected render bg; render uses exact color
   ctx.clearRect(0,0,cv.width,cv.height);
   const bgMode = el.renderBg.value;
   if(S.rendering){
     ctx.fillStyle = bgMode==='green' ? '#00FF00' : '#000000';
   } else {
-    // preview: tint so you can see strokes
     ctx.fillStyle = bgMode==='green' ? '#1a3a1a' : '#222222';
   }
   ctx.fillRect(0,0,cv.width,cv.height);
@@ -676,17 +742,16 @@ function drawAt(t){
   }
 
   const g = getActiveGroup(S.time);
-  if(!g){
-    el.now.textContent='…';
-    return;
-  }
+  if(!g){ el.now.textContent='…'; return; }
 
   const caps = getToggle(el.tCaps);
   const mode = el.mode.value;
+  const animMode = el.animMode.value;
+  const animSpeedMs = +el.animSpeed.value / 1000; // seconds per word
   const base = el.base.value;
   const hi = el.hi.value;
-  const text = caps ? g.text.toUpperCase() : g.text;
   const words = (caps ? g.wt.map(w=>({...w, word:w.word.toUpperCase()})) : g.wt);
+  const text = words.map(w=>w.word).join(' ');
 
   const y = yFromPos();
   const fontSize = +el.size.value;
@@ -695,19 +760,357 @@ function drawAt(t){
   ctx.textAlign='center';
   ctx.textBaseline='alphabetic';
 
-  // measure line and optionally draw bg box
   const measureText = (str)=>ctx.measureText(str).width;
   const padX = Math.round(fontSize*0.55);
   const padY = Math.round(fontSize*0.35);
   const boxRadius = Math.round(fontSize*0.35);
+  const doStroke = getToggle(el.tStroke) && (+el.strokeW.value>0);
 
-  const lineW = measureText(text);
-  const x = cv.width/2;
-  const topY = y - fontSize; // approx ascent
-  const boxW = lineW + padX*2;
-  const boxH = fontSize + padY*2;
+  // Determine active word index for karaoke
+  let activeIdx = 0;
+  for(let i=0;i<words.length;i++){
+    if(S.time>=words[i].start && S.time<words[i].end){ activeIdx=i; break; }
+    if(S.time>=words[i].end) activeIdx=i;
+  }
 
-  if(getToggle(el.tBg)){
+  // ============ SERIFADE mode (screenshot 3) ============
+  if(mode==='serifade'){
+    // Serif fade: current group = full brightness, draw with weight based on word timing
+    // Previous group shown dimly above for context effect
+    const lineHeight = fontSize * 1.45;
+    const cy = yFromPos();
+
+    // Find previous group for context
+    const gIdx = S.groups.indexOf(g);
+    const prevG = gIdx > 0 ? S.groups[gIdx-1] : null;
+
+    ctx.font = `400 ${fontSize}px '${fontName}', serif`;
+    ctx.textAlign='center';
+    ctx.textBaseline='alphabetic';
+
+    // Draw previous group dimmed above
+    if(prevG){
+      const prevText = (getToggle(el.tCaps) ? prevG.text.toUpperCase() : prevG.text);
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = el.base.value;
+      ctx.fillText(prevText, cv.width/2, cy - lineHeight);
+      ctx.restore();
+    }
+
+    // Draw current group — highlight active word, rest slightly dimmer
+    const parts2 = words.map(w=>w.word);
+    const fullW3 = measureText(parts2.join(' '));
+    let sx3 = cv.width/2 - fullW3/2;
+    ctx.textAlign='left';
+    for(let i=0;i<parts2.length;i++){
+      const isActive = i===activeIdx;
+      ctx.save();
+      ctx.globalAlpha = isActive ? 1.0 : 0.45;
+      ctx.fillStyle = isActive ? el.base.value : el.hi.value;
+      ctx.fillText(parts2[i], sx3, cy);
+      ctx.restore();
+      sx3 += measureText(parts2[i] + (i<parts2.length-1?' ':''));
+    }
+    el.now.textContent = parts2[activeIdx] || text;
+    return;
+  }
+
+  // ============ MULTILINE mode (screenshot 1 — Voltage) ============
+  // Wraps words across two lines, karaoke-highlight the active word
+  if(mode==='multiline'){
+    const maxLineW = cv.width * 0.88;
+    // Split words into lines
+    const lines2 = [];
+    let curLine = [];
+    let curW = 0;
+    for(const wrd of words){
+      const ww = measureText(wrd.word + ' ');
+      if(curW + ww > maxLineW && curLine.length){
+        lines2.push(curLine);
+        curLine = [wrd];
+        curW = measureText(wrd.word + ' ');
+      } else {
+        curLine.push(wrd);
+        curW += ww;
+      }
+    }
+    if(curLine.length) lines2.push(curLine);
+
+    const lineH = fontSize * 1.25;
+    const totalH = lines2.length * lineH;
+    const startY = yFromPos() - totalH/2 + fontSize;
+
+    ctx.textAlign = 'left';
+    for(let li=0; li<lines2.length; li++){
+      const lineWords2 = lines2[li];
+      const lineText2 = lineWords2.map(w=>w.word).join(' ');
+      const lineW2 = measureText(lineText2);
+      let lx = cv.width/2 - lineW2/2;
+      const ly = startY + li * lineH;
+
+      for(let wi=0; wi<lineWords2.length; wi++){
+        const wrd = lineWords2[wi];
+        const isActive = words.indexOf(wrd) === activeIdx;
+        ctx.save();
+        ctx.fillStyle = isActive ? hi : base;
+        if(doStroke){
+          ctx.strokeStyle = el.strokeColor.value;
+          ctx.lineWidth = +el.strokeW.value;
+          ctx.lineJoin = 'round';
+          ctx.strokeText(wrd.word, lx, ly);
+        }
+        if(getToggle(el.tShadow)){
+          ctx.shadowColor = el.shadowColor.value;
+          ctx.shadowBlur = +el.shadowBlur.value;
+          ctx.shadowOffsetX = Math.round(fontSize*0.04);
+          ctx.shadowOffsetY = Math.round(fontSize*0.04);
+        }
+        ctx.fillText(wrd.word, lx, ly);
+        ctx.restore();
+        lx += measureText(wrd.word + (wi<lineWords2.length-1?' ':''));
+      }
+    }
+    el.now.textContent = words[activeIdx]?.word || text;
+    return;
+  }
+
+  // ============ GHOSTLINE mode (screenshot 2 — Mint) ============
+  // Multiline wrap inside a large rounded bg box; next/upcoming word shown as big ghost below
+  if(mode==='ghostline'){
+    const gIdx2 = S.groups.indexOf(g);
+    const nextG = gIdx2 < S.groups.length-1 ? S.groups[gIdx2+1] : null;
+
+    // measure multiline layout inside box
+    const boxPadX = fontSize * 0.7;
+    const boxPadY = fontSize * 0.55;
+    const maxLineW2 = cv.width * 0.78;
+    const lines3 = [];
+    let curLine3 = [];
+    let curW3 = 0;
+    for(const wrd of words){
+      const ww = measureText(wrd.word + ' ');
+      if(curW3 + ww > maxLineW2 && curLine3.length){
+        lines3.push(curLine3);
+        curLine3 = [wrd];
+        curW3 = measureText(wrd.word + ' ');
+      } else {
+        curLine3.push(wrd);
+        curW3 += ww;
+      }
+    }
+    if(curLine3.length) lines3.push(curLine3);
+
+    const lineH3 = fontSize * 1.3;
+    const ghostSize = fontSize * 1.55;
+    const innerH = lines3.length * lineH3 + ghostSize * 1.1;
+    const totalBoxH = innerH + boxPadY * 2;
+    const maxTextW = Math.max(...lines3.map(l => measureText(l.map(w=>w.word).join(' '))));
+    const totalBoxW = Math.min(cv.width * 0.92, maxTextW + boxPadX * 2);
+
+    const bx = (cv.width - totalBoxW) / 2;
+    const by = yFromPos() - totalBoxH / 2;
+
+    // Draw bg box
+    const bgc3 = el.bgColor.value;
+    const op3 = (+el.bgOpacity.value)/100;
+    const rr3=parseInt(bgc3.slice(1,3),16), gg3=parseInt(bgc3.slice(3,5),16), bb3=parseInt(bgc3.slice(5,7),16);
+    ctx.save();
+    ctx.fillStyle = `rgba(${rr3},${gg3},${bb3},${op3})`;
+    roundRect(ctx, bx, by, totalBoxW, totalBoxH, fontSize * 0.5);
+    ctx.fill();
+    ctx.restore();
+
+    // Draw main text lines
+    ctx.textAlign = 'left';
+    const textStartY = by + boxPadY + fontSize;
+    for(let li=0; li<lines3.length; li++){
+      const lineWords3 = lines3[li];
+      const lineText3 = lineWords3.map(w=>w.word).join(' ');
+      const lw3 = measureText(lineText3);
+      let lx3 = bx + boxPadX;
+      const ly3 = textStartY + li * lineH3;
+      for(let wi=0; wi<lineWords3.length; wi++){
+        const wrd = lineWords3[wi];
+        ctx.save();
+        ctx.fillStyle = el.base.value;
+        ctx.fillText(wrd.word, lx3, ly3);
+        ctx.restore();
+        lx3 += measureText(wrd.word + (wi<lineWords3.length-1?' ':''));
+      }
+    }
+
+    // Draw ghost word — next group's text, large, faded, at bottom of box
+    if(nextG){
+      const ghostText = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
+      const ghostY = textStartY + lines3.length * lineH3 + ghostSize * 0.85;
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.font = `900 ${ghostSize}px '${fontName}', sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = el.base.value;
+      ctx.fillText(ghostText, bx + boxPadX, ghostY);
+      ctx.restore();
+    }
+
+    el.now.textContent = text;
+    return;
+  }
+
+  // ============ LETTERTYPE mode (screenshot 3 — Bubble) ============
+  // Letters of the active word revealed one-by-one (typewriter at letter level)
+  if(mode==='lettertype'){
+    const elapsed2 = S.time - g.start;
+    const groupDur2 = Math.max(0.01, g.end - g.start);
+    // Spread letter reveals across group duration
+    const allLetters = words.map((w,wi) => w.word.split('').map((ch,ci) => ({ch, wi, ci}))).flat();
+    const totalLetters = allLetters.length;
+    const secPerLetter = groupDur2 / Math.max(totalLetters, 1);
+
+    const fullW4 = measureText(text);
+    let sx4 = cv.width/2 - fullW4/2;
+    ctx.textAlign = 'left';
+
+    for(let wi2=0; wi2<words.length; wi2++){
+      const wrd = words[wi2];
+      const wLetterStart = words.slice(0,wi2).reduce((a,w)=>a+w.word.length,0);
+      let lx4 = sx4;
+      for(let ci2=0; ci2<wrd.word.length; ci2++){
+        const letterIdx = wLetterStart + ci2;
+        const letterRevealTime = letterIdx * secPerLetter;
+        const revealed = elapsed2 >= letterRevealTime;
+        if(!revealed){
+          lx4 += measureText(wrd.word[ci2]);
+          continue;
+        }
+        const isActiveWord = wi2 === activeIdx;
+        ctx.save();
+        ctx.fillStyle = isActiveWord ? hi : base;
+        if(doStroke){
+          ctx.strokeStyle = el.strokeColor.value;
+          ctx.lineWidth = +el.strokeW.value;
+          ctx.lineJoin = 'round';
+          ctx.strokeText(wrd.word[ci2], lx4, y);
+        }
+        ctx.fillText(wrd.word[ci2], lx4, y);
+        ctx.restore();
+        lx4 += measureText(wrd.word[ci2]);
+      }
+      sx4 += measureText(wrd.word + (wi2<words.length-1?' ':''));
+    }
+    el.now.textContent = text;
+    return;
+  }
+
+  // ============ TWOBOX mode (screenshot 4 — Slate) ============
+  // Rounded bg box with border; active word bright, rest muted
+  if(mode==='twobox'){
+    const maxLineW5 = cv.width * 0.80;
+    const boxPadX5 = fontSize * 0.65;
+    const boxPadY5 = fontSize * 0.50;
+    const lines5 = [];
+    let curLine5 = [], curW5 = 0;
+    for(const wrd of words){
+      const ww = measureText(wrd.word + ' ');
+      if(curW5 + ww > maxLineW5 && curLine5.length){
+        lines5.push(curLine5); curLine5=[wrd]; curW5=measureText(wrd.word+' ');
+      } else { curLine5.push(wrd); curW5+=ww; }
+    }
+    if(curLine5.length) lines5.push(curLine5);
+
+    const lineH5 = fontSize * 1.3;
+    const totalBoxH5 = lines5.length * lineH5 + boxPadY5*2 - lineH5*0.15;
+    const maxTW5 = Math.max(...lines5.map(l=>measureText(l.map(w=>w.word).join(' '))));
+    const totalBoxW5 = Math.min(cv.width*0.90, maxTW5 + boxPadX5*2);
+
+    const bx5 = (cv.width - totalBoxW5)/2;
+    const by5 = yFromPos() - totalBoxH5/2;
+
+    // Draw bg
+    const bgc5 = el.bgColor.value;
+    const op5 = (+el.bgOpacity.value)/100;
+    const r5=parseInt(bgc5.slice(1,3),16),g5=parseInt(bgc5.slice(3,5),16),b5=parseInt(bgc5.slice(5,7),16);
+    ctx.save();
+    ctx.fillStyle = `rgba(${r5},${g5},${b5},${op5})`;
+    roundRect(ctx, bx5, by5, totalBoxW5, totalBoxH5, fontSize*0.35);
+    ctx.fill();
+    // border
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 2.5;
+    roundRect(ctx, bx5, by5, totalBoxW5, totalBoxH5, fontSize*0.35);
+    ctx.stroke();
+    ctx.restore();
+
+    // Draw words — active word uses base color, inactive uses hi (muted)
+    ctx.textAlign = 'left';
+    const tsy5 = by5 + boxPadY5 + fontSize;
+    for(let li=0; li<lines5.length; li++){
+      const lineWords5 = lines5[li];
+      const lw5 = measureText(lineWords5.map(w=>w.word).join(' '));
+      let lx5 = bx5 + boxPadX5;
+      const ly5 = tsy5 + li * lineH5;
+      for(let wi=0; wi<lineWords5.length; wi++){
+        const wrd = lineWords5[wi];
+        const globalWi = words.indexOf(wrd);
+        const isActive = globalWi === activeIdx;
+        ctx.save();
+        ctx.fillStyle = isActive ? el.base.value : el.hi.value;
+        ctx.fillText(wrd.word, lx5, ly5);
+        ctx.restore();
+        lx5 += measureText(wrd.word + (wi<lineWords5.length-1?' ':''));
+      }
+    }
+    el.now.textContent = words[activeIdx]?.word || text;
+    return;
+  }
+
+  // ============ WORDBOX mode (screenshot 2) ============
+  if(mode==='wordbox'){
+    // Draw all words with stroke, highlight active with rounded bg box
+    const fullW = measureText(text);
+    let startX = cv.width/2 - fullW/2;
+    ctx.textAlign='left';
+    // First pass: draw highlight box behind active word
+    let cx2 = startX;
+    for(let i=0;i<words.length;i++){
+      const ww = words[i].word;
+      const wWidth = measureText(ww);
+      if(i===activeIdx){
+        const bpad = fontSize*0.15;
+        ctx.save();
+        ctx.fillStyle = el.hi.value;
+        roundRect(ctx, cx2-bpad, y-fontSize-bpad*0.5, wWidth+bpad*2, fontSize+bpad*2, fontSize*0.2);
+        ctx.fill();
+        ctx.restore();
+      }
+      cx2 += measureText(ww + (i<words.length-1?' ':''));
+    }
+    // Second pass: draw text
+    let sx = startX;
+    for(let i=0;i<words.length;i++){
+      const ww = words[i].word;
+      const isActive = i===activeIdx;
+      ctx.fillStyle = isActive ? '#000000' : el.base.value;
+      if(doStroke && !isActive){
+        ctx.strokeStyle = el.strokeColor.value;
+        ctx.lineWidth = +el.strokeW.value;
+        ctx.strokeText(ww, sx, y);
+      }
+      ctx.fillText(ww, sx, y);
+      sx += measureText(ww + (i<words.length-1?' ':''));
+    }
+    el.now.textContent = words[activeIdx]?.word || text;
+    return;
+  }
+
+  // ============ BLUEBOX mode (screenshot 1 style) ============
+  if(mode==='karaoke' && getToggle(el.tBg)){
+    // Full-line bg box
+    const lineW = measureText(text);
+    const x = cv.width/2;
+    const topY = y - fontSize;
+    const boxW = lineW + padX*2;
+    const boxH = fontSize + padY*2;
     const bgc = el.bgColor.value;
     const op = (+el.bgOpacity.value)/100;
     const r=parseInt(bgc.slice(1,3),16), g1=parseInt(bgc.slice(3,5),16), b=parseInt(bgc.slice(5,7),16);
@@ -716,6 +1119,10 @@ function drawAt(t){
     roundRect(ctx, x-boxW/2, topY-padY, boxW, boxH, boxRadius);
     ctx.fill();
     ctx.restore();
+  } else if(!getToggle(el.tBg) && mode==='karaoke'){
+    // no bg
+  } else if(mode==='pop'){
+    // pop mode handled below
   }
 
   // shadow
@@ -728,44 +1135,103 @@ function drawAt(t){
     ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
   }
 
-  // stroke
-  const doStroke = getToggle(el.tStroke) && (+el.strokeW.value>0);
+  // ============ POP mode ============
   if(mode==='pop'){
     ctx.fillStyle = hi;
     if(doStroke){
       ctx.strokeStyle = el.strokeColor.value;
       ctx.lineWidth = +el.strokeW.value;
-      ctx.strokeText(text, x, y);
+      ctx.strokeText(text, cv.width/2, y);
     }
-    ctx.fillText(text, x, y);
+    ctx.fillText(text, cv.width/2, y);
     el.now.textContent = text;
     return;
   }
 
-  // karaoke: highlight active word
-  let activeIdx = 0;
-  for(let i=0;i<words.length;i++){
-    if(S.time>=words[i].start && S.time<words[i].end){ activeIdx=i; break; }
-    if(S.time>=words[i].end) activeIdx=i;
-  }
-
-  // draw word by word centered
+  // ============ KARAOKE (+ animations) ============
   const parts = words.map(w=>w.word);
   const full = parts.join(' ');
-  const fullW = measureText(full);
-  let startX = x - fullW/2;
+  const fullW2 = measureText(full);
+  let startX = cv.width/2 - fullW2/2;
   ctx.textAlign='left';
+
+  // Determine how many words have "appeared" based on anim slam/typewriter logic
+  // For slam/fadeup/scale/bounce: words appear one-by-one from group start
+  // Each word appears at: groupStart + wordIndex * animSpeedMs * groupDuration fraction
+  const groupDur = Math.max(0.01, g.end - g.start);
+  const elapsed = S.time - g.start;
+
   for(let i=0;i<parts.length;i++){
-    const w = parts[i];
+    const ww = parts[i];
     const isActive = i===activeIdx;
+    // Anim: fraction through this word's appearance window
+    const wordAppearTime = i * animSpeedMs; // when this word should appear (seconds after group start)
+    const wordDone = elapsed - wordAppearTime; // how long since this word appeared
+
+    let alpha = 1, scaleX = 1, scaleY = 1, offsetY = 0, offsetX = 0;
+    const animDur = animSpeedMs * 0.8; // animation lasts 80% of per-word time
+
+    if(animMode !== 'none'){
+      if(wordDone < 0){
+        // Not yet appeared
+        alpha = 0;
+        if(i < parts.length) {
+          // skip drawing entirely
+          startX += measureText(ww + (i<parts.length-1?' ':''));
+          continue;
+        }
+      } else {
+        const p = animDur > 0 ? Math.min(1, wordDone / animDur) : 1;
+        const easeOut = 1 - Math.pow(1-p, 3);
+        const easeBack = p < 0.6 ? p/0.6 : 1 - (p-0.6)/0.4 * 0.15; // slight overshoot then settle
+
+        if(animMode==='slam'){
+          // Scale from 200% down to 100% + slight overshoot
+          const s = p < 1 ? (2 - easeOut) : 1;
+          scaleX = Math.max(0.1, s);
+          scaleY = Math.max(0.1, s);
+          alpha = Math.min(1, p * 3);
+        } else if(animMode==='fadeup'){
+          alpha = easeOut;
+          offsetY = (1-easeOut) * fontSize * 0.5;
+        } else if(animMode==='scale'){
+          const s = p < 1 ? easeBack : 1;
+          scaleX = Math.max(0.01, s);
+          scaleY = Math.max(0.01, s);
+          alpha = Math.min(1, p * 2);
+        } else if(animMode==='bounce'){
+          // Drop from above with bounce
+          const drop = p < 1 ? -(1-easeOut) * fontSize * 1.5 : 0;
+          offsetY = drop;
+          alpha = Math.min(1, p * 2);
+        } else if(animMode==='typewriter'){
+          // Just appear instantly at the right time
+          alpha = 1;
+        }
+      }
+    }
+
+    const wx = startX + measureText(ww)/2;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if(scaleX!==1||scaleY!==1||offsetY!==0){
+      ctx.translate(wx, y + offsetY);
+      ctx.scale(scaleX, scaleY);
+      ctx.translate(-wx, -y);
+      if(offsetY!==0) ctx.translate(0, offsetY);
+    } else if(offsetY!==0){
+      ctx.translate(0, offsetY);
+    }
     ctx.fillStyle = isActive ? hi : base;
     if(doStroke){
       ctx.strokeStyle = el.strokeColor.value;
       ctx.lineWidth = +el.strokeW.value;
-      ctx.strokeText(w, startX, y);
+      ctx.strokeText(ww, startX, y);
     }
-    ctx.fillText(w, startX, y);
-    startX += measureText(w + (i<parts.length-1?' ':''));
+    ctx.fillText(ww, startX, y);
+    ctx.restore();
+
+    startX += measureText(ww + (i<parts.length-1?' ':''));
   }
   el.now.textContent = parts[activeIdx] || full;
 }
