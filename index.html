@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WordPunch — MP4 Caption Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+  :root{
+    --bg:#0b0b0f;--panel:#13131a;--panel2:#191922;--border:#2a2a36;
+    --text:#f2f2f5;--muted:#a2a2b3;--accent:#f5c518;--good:#3ecf6c;--bad:#e05858;
+    --radius:10px;--font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:linear-gradient(180deg,#07070a, #0b0b0f 40%);color:var(--text);height:100vh;overflow:hidden}
+  .layout{display:grid;grid-template-columns:360px 1fr;height:100vh}
+  .sidebar{background:var(--panel);border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;overflow-x:hidden;height:100vh}
+  .top{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius)}
+  .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#ff8c00);display:flex;align-items:center;justify-content:center;color:#000;font-weight:900}
+  .title{font-weight:800;letter-spacing:.4px}
+  .sub{color:var(--muted);font-size:12px;margin-left:auto}
+  .card{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius)}
+  .card-h{padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--muted);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+  .step{width:18px;height:18px;border-radius:50%;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.35);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:11px}
+  .card-b{padding:12px}
+  .hint{color:var(--muted);font-size:12px;line-height:1.35}
+  .drop{margin-top:10px;border:2px dashed rgba(245,197,24,.35);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;transition:.15s}
+  .drop:hover,.drop.drag{background:rgba(245,197,24,.06);border-color:var(--accent)}
+  .drop strong{color:var(--accent)}
+  .status{margin-top:10px;font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;display:none}
+  .status.good{display:block;background:rgba(62,207,108,.08);border-color:rgba(62,207,108,.25);color:var(--good)}
+  .status.bad{display:block;background:rgba(224,88,88,.08);border-color:rgba(224,88,88,.25);color:var(--bad)}
+  .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .preset{border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:.15s;background:rgba(255,255,255,.02)}
+  .preset:hover{border-color:rgba(245,197,24,.55)}
+  .preset.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(245,197,24,.25) inset}
+  .pname{font-size:11px;font-weight:900;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .pprev{margin-top:6px;font-weight:900;line-height:1.1}
+  .pdesc{margin-top:4px;color:var(--muted);font-size:11px}
+  label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px;font-weight:700}
+  select,input[type=text]{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:#0f0f15;color:var(--text);outline:none}
+  select:focus,input:focus{border-color:rgba(245,197,24,.65)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field{margin-bottom:10px}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
+  .toggle{width:38px;height:20px;background:var(--border);border-radius:999px;position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+  .toggle.on{background:rgba(245,197,24,.65)}
+  .toggle.on::after{transform:translateX(18px)}
+  .slider{width:100%}
+  .sliderline{display:flex;align-items:center;gap:10px}
+  .sliderline .val{width:42px;text-align:right;color:var(--accent);font-weight:900;font-size:12px}
+  input[type=range]{width:100%}
+  .colorline{display:flex;align-items:center;gap:10px}
+  input[type=color]{width:36px;height:28px;border-radius:8px;border:1px solid var(--border);background:transparent;padding:0}
+  .ar-tabs{display:flex;gap:6px}
+  .ar{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#0f0f15;color:var(--muted);cursor:pointer;font-weight:800;font-size:12px}
+  .ar.active{border-color:var(--accent);color:var(--accent);background:rgba(245,197,24,.06)}
+  .btn{position:sticky;bottom:0;width:100%;padding:14px;border:none;border-radius:12px;background:var(--accent);color:#000;font-weight:1000;letter-spacing:1px;font-size:14px;cursor:pointer;transition:.15s;flex-shrink:0;z-index:2;box-shadow:0 -10px 20px rgba(11,11,15,.9)}
+  .btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed}
+  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,197,24,.18)}
+  /* right */
+  .main{display:flex;flex-direction:column;background:var(--bg)}
+  .mainbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
+  .mainbar .tc{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;color:var(--muted);font-size:12px}
+  .mainbar .tc b{color:var(--text)}
+  .canvaswrap{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;position:relative}
+  .outer{border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px var(--border), 0 30px 90px rgba(0,0,0,.65)}
+  canvas{display:block;background:#000}
+  .play{padding:12px 16px;border-top:1px solid var(--border);background:rgba(255,255,255,.03)}
+  .playtop{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:10px}
+  .playbtn{width:38px;height:38px;border-radius:50%;border:none;background:var(--accent);color:#000;font-weight:900;cursor:pointer}
+  .scrub{width:100%}
+  .dl{display:none;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:rgba(62,207,108,.08);border-top:1px solid rgba(62,207,108,.25)}
+  .dl.show{display:flex}
+  .dl a{padding:10px 18px;border-radius:10px;background:var(--good);color:#000;text-decoration:none;font-weight:900}
+  .overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:rgba(0,0,0,.75);color:var(--text);font-weight:800}
+  .overlay.show{display:flex}
+  .bar{width:280px;height:6px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden}
+  .bar>div{height:100%;width:0%;background:var(--accent);transition:width .1s}
+  .small{color:var(--muted);font-size:12px;font-weight:600;text-align:center;max-width:420px}
+  select{font-family:inherit}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="top">
+      <div class="logo">⚡</div>
+      <div class="title">WordPunch</div>
+      <div class="sub">MP4 overlay</div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="step">1</div> Import SRT</div>
+      <div class="card-b">
+        <div class="hint">Drop an <strong>.srt</strong> here or click to browse.</div>
+        <input id="file" type="file" accept=".srt" hidden>
+        <div class="drop" id="drop"><strong>Click to browse</strong> or drag &amp; drop</div>
+        <div class="status" id="st"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="step">2</div> Style preset</div>
+      <div class="card-b">
+        <div class="preset-grid" id="presets"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="step">3</div> Customize</div>
+      <div class="card-b">
+        <div class="field">
+          <label>Caption Mode</label>
+          <select id="mode">
+            <option value="pop">Word Pop</option>
+            <option value="karaoke">Karaoke Highlight</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <div class="field" style="grid-column:1/-1">
+            <label>Font Family</label>
+            <select id="fontSelect"></select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Font Size: <span id="sizeVal">90</span>px</label>
+          <input class="slider" type="range" id="size" min="24" max="160" value="90">
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Base Color</label>
+            <div class="colorline"><input type="color" id="base" value="#FFFFFF"><span id="baseHex" style="font-family:ui-monospace,monospace;color:var(--muted)">#FFFFFF</span></div>
+          </div>
+          <div class="field">
+            <label>Highlight Color</label>
+            <div class="colorline"><input type="color" id="hi" value="#FFD700"><span id="hiHex" style="font-family:ui-monospace,monospace;color:var(--muted)">#FFD700</span></div>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <label style="margin:0">Text Stroke</label>
+          </div>
+          <div class="toggle on" id="tStroke"></div>
+        </div>
+        <div class="row field" id="strokeOpts">
+          <div>
+            <label>Stroke Color</label>
+            <input type="color" id="strokeColor" value="#000000">
+          </div>
+          <div>
+            <label>Width: <span id="strokeVal">4</span>px</label>
+            <input type="range" id="strokeW" min="0" max="12" value="4">
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <div><label style="margin:0">Drop Shadow</label></div>
+          <div class="toggle" id="tShadow"></div>
+        </div>
+        <div class="row field" id="shadowOpts" style="display:none">
+          <div>
+            <label>Shadow Color</label>
+            <input type="color" id="shadowColor" value="#000000">
+          </div>
+          <div>
+            <label>Blur: <span id="shadowVal">6</span>px</label>
+            <input type="range" id="shadowBlur" min="0" max="30" value="6">
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <div><label style="margin:0">Background Box</label></div>
+          <div class="toggle" id="tBg"></div>
+        </div>
+        <div class="row field" id="bgOpts" style="display:none">
+          <div>
+            <label>BG Color</label>
+            <input type="color" id="bgColor" value="#000000">
+          </div>
+          <div>
+            <label>Opacity: <span id="bgVal">70</span>%</label>
+            <input type="range" id="bgOpacity" min="0" max="100" value="70">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Words per Caption</label>
+            <select id="wpc">
+              <option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>ALL CAPS</label>
+            <div class="toggle on" id="tCaps"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Vertical Position</label>
+          <select id="vpos">
+            <option value="top">Top Third</option>
+            <option value="center" selected>Center</option>
+            <option value="bottom">Bottom Third</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Aspect Ratio</label>
+          <div class="ar-tabs">
+            <button class="ar" data-ar="9:16">9:16</button>
+            <button class="ar active" data-ar="16:9">16:9</button>
+            <button class="ar" data-ar="1:1">1:1</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="step">4</div> Export</div>
+      <div class="card-b">
+        <div class="field">
+          <label>Render Background</label>
+          <select id="renderBg">
+            <option value="green">🟢 Green Screen (Ultra Key in Premiere)</option>
+            <option value="black">⬛ Black (Screen blend in Premiere)</option>
+          </select>
+        </div>
+        <div class="hint" id="renderHint" style="margin-bottom:8px">In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green. Keeps black strokes!</div>
+      </div>
+    </div>
+
+    <button class="btn" id="render" disabled>RENDER MP4</button>
+  </div>
+
+  <div class="main">
+    <div class="mainbar">
+      <div style="font-weight:900;letter-spacing:1px;color:var(--muted);text-transform:uppercase;font-size:12px">Live preview</div>
+      <div class="tc"><b id="tcCur">00:00.000</b> / <span id="tcTot">00:00.000</span></div>
+    </div>
+    <div class="canvaswrap">
+      <div class="outer"><canvas id="cv" width="960" height="540"></canvas></div>
+      <div class="overlay" id="ov">
+        <div style="font-size:20px;color:var(--accent);letter-spacing:1px">Rendering…</div>
+        <div class="bar"><div id="barFill"></div></div>
+        <div class="small" id="ovTxt">Preparing</div>
+      </div>
+    </div>
+    <div class="play">
+      <div class="playtop">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="playbtn" id="play">▶</button>
+          <button class="playbtn" id="restart" title="restart" style="width:auto;padding:0 14px;border-radius:12px;background:rgba(255,255,255,.06);color:var(--text)">↺ Restart</button>
+        </div>
+        <div id="now" style="color:var(--accent);font-weight:900">— load an SRT to preview —</div>
+      </div>
+      <input class="scrub" type="range" id="scrub" min="0" max="1000" value="0">
+    </div>
+    <div class="dl" id="dl">
+      <div>
+        <div style="font-weight:900;color:var(--good)">Video ready!</div>
+        <div id="dlHint" style="color:var(--muted);font-size:12px">In Premiere: place above footage → Effects → Ultra Key → pick the green</div>
+      </div>
+      <a id="dlA" href="#" download="wordpunch_overlay.mp4">Download MP4</a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   Utilities + SRT parsing
+   ========================= */
+const qs = (s)=>document.querySelector(s);
+const qsa=(s)=>Array.from(document.querySelectorAll(s));
+function pad(n,l=2){n=Math.floor(n);return String(n).padStart(l,'0');}
+function fmtTC(t){
+  const m = Math.floor(t/60);
+  const s = t - m*60;
+  const ms = Math.floor((s%1)*1000);
+  return pad(m,2)+":"+pad(s,2)+"."+pad(ms,3);
+}
+function parseTime(ts){
+  // 00:00:01,234 or .
+  const p = ts.replace(',','.').split(':');
+  return (+p[0])*3600 + (+p[1])*60 + parseFloat(p[2]);
+}
+function parseSRT(text){
+  const blocks = text.trim().replace(/\r\n/g,'\n').split(/\n\n+/);
+  const out=[];
+  for(const b of blocks){
+    const lines=b.trim().split('\n');
+    let timeLine = lines.find(l=>l.includes('-->'));
+    if(!timeLine) continue;
+    const m=timeLine.match(/(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})/);
+    if(!m) continue;
+    const idx = lines.indexOf(timeLine);
+    const caption = lines.slice(idx+1).join(' ').replace(/<[^>]+>/g,'').trim();
+    if(!caption) continue;
+    out.push({start:parseTime(m[1]), end:parseTime(m[2]), text:caption});
+  }
+  return out;
+}
+function splitWords(entries){
+  const words=[];
+  for(const e of entries){
+    const ws=e.text.split(/\s+/).filter(Boolean);
+    if(!ws.length) continue;
+    const dur=Math.max(0.01, e.end-e.start);
+    const per=dur/ws.length;
+    for(let i=0;i<ws.length;i++){
+      words.push({word:ws[i], start:e.start+i*per, end:e.start+(i+1)*per});
+    }
+  }
+  return words;
+}
+function groupWords(words, size){
+  const MAX_GAP = 0.35;
+  const groups=[];
+  let cur=[];
+  for(const w of words){
+    if(!cur.length){cur=[w]; continue;}
+    const prev=cur[cur.length-1];
+    const gap=w.start-prev.end;
+    if(cur.length>=size || gap>MAX_GAP){
+      groups.push(cur);
+      cur=[w];
+    } else cur.push(w);
+  }
+  if(cur.length) groups.push(cur);
+  return groups.map(g=>({
+    wt:g,
+    start:g[0].start,
+    end:g[g.length-1].end,
+    text:g.map(x=>x.word).join(' ')
+  }));
+}
+
+/* =========================
+   State
+   ========================= */
+const PRESETS = {
+  beast:{name:"MR BEAST", desc:"Bold impact · gold", font:"Impact", size:90, base:"#FFFFFF", hi:"#FFD700", stroke:true, strokeColor:"#000000", strokeW:4, shadow:false, shadowColor:"#000000", shadowBlur:6, bg:false, bgColor:"#000000", bgOp:70, caps:true, vpos:"center"},
+  cenat:{name:"KAI CENAT", desc:"Red pop · energy", font:"Arial Black", size:85, base:"#FFFFFF", hi:"#FF3B3B", stroke:true, strokeColor:"#000000", strokeW:3, shadow:true, shadowColor:"#000000", shadowBlur:10, bg:false, bgColor:"#000000", bgOp:70, caps:true, vpos:"center"},
+  clean:{name:"CLEAN", desc:"Minimal white", font:"DM Sans", size:64, base:"#FFFFFF", hi:"#4EA8FE", stroke:false, strokeColor:"#000000", strokeW:0, shadow:true, shadowColor:"#000000", shadowBlur:12, bg:true, bgColor:"#000000", bgOp:55, caps:false, vpos:"bottom"},
+  neon:{name:"NEON", desc:"Glow green", font:"Impact", size:85, base:"#FFFFFF", hi:"#00FF88", stroke:true, strokeColor:"#004422", strokeW:2, shadow:true, shadowColor:"#00FF88", shadowBlur:18, bg:false, bgColor:"#000000", bgOp:70, caps:true, vpos:"center"},
+};
+
+const S = {
+  preset:"beast",
+  entries:[],
+  words:[],
+  groups:[],
+  duration:0,
+  ar:"16:9",
+  time:0,
+  playing:false,
+  raf:0,
+  last:0,
+  blob:null,
+  filename:"wordpunch",
+  rendering:false,
+};
+
+/* =========================
+   UI binding
+   ========================= */
+const el = {
+  file: qs('#file'),
+  drop: qs('#drop'),
+  st: qs('#st'),
+  presets: qs('#presets'),
+  render: qs('#render'),
+  mode: qs('#mode'),
+  fontSelect: qs('#fontSelect'),
+  size: qs('#size'), sizeVal: qs('#sizeVal'),
+  base: qs('#base'), baseHex: qs('#baseHex'),
+  hi: qs('#hi'), hiHex: qs('#hiHex'),
+  tStroke: qs('#tStroke'), strokeOpts: qs('#strokeOpts'), strokeColor: qs('#strokeColor'),
+  strokeW: qs('#strokeW'), strokeVal: qs('#strokeVal'),
+  tShadow: qs('#tShadow'), shadowOpts: qs('#shadowOpts'), shadowColor: qs('#shadowColor'),
+  shadowBlur: qs('#shadowBlur'), shadowVal: qs('#shadowVal'),
+  tBg: qs('#tBg'), bgOpts: qs('#bgOpts'), bgColor: qs('#bgColor'),
+  bgOpacity: qs('#bgOpacity'), bgVal: qs('#bgVal'),
+  wpc: qs('#wpc'),
+  tCaps: qs('#tCaps'),
+  vpos: qs('#vpos'),
+  ars: qsa('.ar'),
+  cv: qs('#cv'),
+  tcCur: qs('#tcCur'), tcTot: qs('#tcTot'),
+  play: qs('#play'), restart: qs('#restart'),
+  scrub: qs('#scrub'),
+  now: qs('#now'),
+  ov: qs('#ov'), barFill: qs('#barFill'), ovTxt: qs('#ovTxt'),
+  dl: qs('#dl'), dlA: qs('#dlA'), dlHint: qs('#dlHint'),
+  renderBg: qs('#renderBg'), renderHint: qs('#renderHint')
+};
+
+function setStatus(type, msg){
+  el.st.className='status ' + (type==='good'?'good':'bad');
+  el.st.textContent=msg;
+  el.st.style.display='block';
+}
+function toggle(elToggle, on){
+  elToggle.classList.toggle('on', !!on);
+}
+function getToggle(elToggle){ return elToggle.classList.contains('on'); }
+
+function applyPreset(key){
+  const p = PRESETS[key];
+  S.preset = key;
+  qsa('.preset').forEach(x=>x.classList.toggle('active', x.dataset.preset===key));
+
+  el.mode.value = 'pop';
+  el.fontSelect.value = p.font;
+  el.size.value = p.size; el.sizeVal.textContent = p.size;
+
+  el.base.value = p.base; el.baseHex.textContent = p.base.toUpperCase();
+  el.hi.value = p.hi; el.hiHex.textContent = p.hi.toUpperCase();
+
+  toggle(el.tStroke, p.stroke);
+  el.strokeOpts.style.display = p.stroke ? 'grid' : 'none';
+  el.strokeColor.value = p.strokeColor;
+  el.strokeW.value = p.strokeW; el.strokeVal.textContent = p.strokeW;
+
+  toggle(el.tShadow, p.shadow);
+  el.shadowOpts.style.display = p.shadow ? 'grid' : 'none';
+  el.shadowColor.value = p.shadowColor;
+  el.shadowBlur.value = p.shadowBlur; el.shadowVal.textContent = p.shadowBlur;
+
+  toggle(el.tBg, p.bg);
+  el.bgOpts.style.display = p.bg ? 'grid' : 'none';
+  el.bgColor.value = p.bgColor;
+  el.bgOpacity.value = p.bgOp; el.bgVal.textContent = p.bgOp;
+
+  el.wpc.value = String(2);
+  toggle(el.tCaps, p.caps);
+  el.vpos.value = p.vpos;
+
+  regroup();
+  drawAt(S.time);
+}
+
+/* Build preset cards */
+function buildPresets(){
+  const frag=document.createDocumentFragment();
+  for(const [k,p] of Object.entries(PRESETS)){
+    const d=document.createElement('div');
+    d.className='preset'+(k==='beast'?' active':'');
+    d.dataset.preset=k;
+    d.innerHTML = `
+      <div class="pname">${p.name}</div>
+      <div class="pprev" style="font-family:${p.font}, sans-serif; font-size:22px">
+        <span style="color:${p.hi};-webkit-text-stroke:${p.stroke?1.2:0}px ${p.strokeColor}">NO WAY!</span>
+      </div>
+      <div class="pdesc">${p.desc}</div>
+    `;
+    d.addEventListener('click',()=>applyPreset(k));
+    frag.appendChild(d);
+  }
+  el.presets.appendChild(frag);
+}
+
+/* =========================
+   Canvas + drawing (must init before presets call drawAt)
+   ========================= */
+const DIMS = {'16:9':[960,540],'9:16':[540,960],'1:1':[540,540]};
+const cv = el.cv;
+const ctx = cv.getContext('2d');
+
+function setAR(ar){
+  S.ar = ar;
+  const [w,h]=DIMS[ar] || DIMS['16:9'];
+  cv.width=w; cv.height=h;
+  cv.style.width = (ar==='9:16') ? '360px' : '640px';
+  cv.style.height = 'auto';
+  drawAt(S.time);
+}
+
+/* ======= Font Dropdown (must init before applyPreset) ======= */
+const FONT_LIST = [
+  {name:'Impact', system:true},
+  {name:'Arial Black', system:true},
+  {name:'Georgia', system:true},
+  {name:'Courier New', system:true},
+  {name:'Verdana', system:true},
+  {name:'Trebuchet MS', system:true},
+  {name:'Anton'},{name:'Bangers'},{name:'Bebas Neue'},{name:'Black Ops One'},
+  {name:'Bowlby One SC'},{name:'Bungee'},{name:'Cabin'},{name:'Chakra Petch'},
+  {name:'Concert One'},{name:'Dela Gothic One'},{name:'DM Sans'},{name:'Fredoka One'},
+  {name:'Fugaz One'},{name:'Graduate'},{name:'Kanit'},{name:'Luckiest Guy'},
+  {name:'Montserrat'},{name:'Oswald'},{name:'Passion One'},{name:'Permanent Marker'},
+  {name:'Playfair Display'},{name:'Poppins'},{name:'Press Start 2P'},{name:'Raleway'},
+  {name:'Righteous'},{name:'Roboto'},{name:'Roboto Condensed'},{name:'Rubik'},
+  {name:'Russo One'},{name:'Secular One'},{name:'Sigmar One'},{name:'Teko'},
+  {name:'Titan One'},{name:'Ultra'},{name:'Unbounded'},{name:'Urbanist'},
+  {name:'Yanone Kaffeesatz'},
+];
+const googleFonts = FONT_LIST.filter(f=>!f.system).map(f=>f.name);
+const glink = document.createElement('link');
+glink.rel='stylesheet';
+glink.href='https://fonts.googleapis.com/css2?'+googleFonts.map(f=>'family='+encodeURIComponent(f)+':wght@400;700;900').join('&')+'&display=swap';
+document.head.appendChild(glink);
+(function buildFontSelect(){
+  let html='<optgroup label="System Fonts">';
+  FONT_LIST.filter(f=>f.system).forEach(f=>{ html+=`<option value="${f.name}" style="font-family:'${f.name}',sans-serif">${f.name}</option>`; });
+  html+='</optgroup><optgroup label="Google Fonts">';
+  FONT_LIST.filter(f=>!f.system).forEach(f=>{ html+=`<option value="${f.name}" style="font-family:'${f.name}',sans-serif">${f.name}</option>`; });
+  html+='</optgroup>';
+  el.fontSelect.innerHTML=html;
+  el.fontSelect.value='Impact';
+})();
+document.fonts.ready.then(()=> drawAt(S.time));
+
+buildPresets();
+applyPreset('beast');
+
+/* File drop/browse */
+function handleSrtFile(file){
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.srt')){
+    setStatus('bad','Please select a .srt file');
+    return;
+  }
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const txt=String(r.result||'');
+      const entries=parseSRT(txt);
+      if(!entries.length){ setStatus('bad','No captions found in SRT'); return; }
+      S.entries=entries;
+      S.words=splitWords(entries);
+      S.duration = entries[entries.length-1].end;
+      S.filename = file.name.replace(/\\.srt$/i,'');
+      el.tcTot.textContent = fmtTC(S.duration);
+      setStatus('good',`Loaded ${entries.length} cues · ${S.words.length} words · ${fmtTC(S.duration)}`);
+      el.render.disabled = false;
+      regroup();
+      drawAt(0);
+      el.now.textContent = 'Ready to preview';
+    }catch(e){
+      console.error(e);
+      setStatus('bad','Failed to parse SRT');
+    }
+  };
+  r.onerror=()=>setStatus('bad','Failed to read file');
+  r.readAsText(file);
+}
+
+el.drop.addEventListener('click',()=>el.file.click());
+el.file.addEventListener('change',(e)=>{
+  const f=e.target.files && e.target.files[0];
+  handleSrtFile(f);
+  el.file.value=''; // allow reselect same file
+});
+['dragenter','dragover'].forEach(evt=>el.drop.addEventListener(evt,(e)=>{e.preventDefault();e.stopPropagation();el.drop.classList.add('drag');}));
+['dragleave','drop'].forEach(evt=>el.drop.addEventListener(evt,(e)=>{e.preventDefault();e.stopPropagation();el.drop.classList.remove('drag');}));
+el.drop.addEventListener('drop',(e)=>{const f=e.dataTransfer.files && e.dataTransfer.files[0];handleSrtFile(f);});
+
+/* Control bindings */
+function updateHex(){
+  el.baseHex.textContent = el.base.value.toUpperCase();
+  el.hiHex.textContent = el.hi.value.toUpperCase();
+}
+updateHex();
+
+el.mode.addEventListener('change',()=>drawAt(S.time));
+el.fontSelect.addEventListener('change',()=> drawAt(S.time));
+el.size.addEventListener('input',()=>{el.sizeVal.textContent=el.size.value; drawAt(S.time);});
+el.base.addEventListener('input',()=>{updateHex(); drawAt(S.time);});
+el.hi.addEventListener('input',()=>{updateHex(); drawAt(S.time);});
+
+el.tStroke.addEventListener('click',()=>{
+  toggle(el.tStroke, !getToggle(el.tStroke));
+  el.strokeOpts.style.display = getToggle(el.tStroke) ? 'grid' : 'none';
+  drawAt(S.time);
+});
+el.strokeColor.addEventListener('input',()=>drawAt(S.time));
+el.strokeW.addEventListener('input',()=>{el.strokeVal.textContent=el.strokeW.value; drawAt(S.time);});
+
+el.tShadow.addEventListener('click',()=>{
+  toggle(el.tShadow, !getToggle(el.tShadow));
+  el.shadowOpts.style.display = getToggle(el.tShadow) ? 'grid' : 'none';
+  drawAt(S.time);
+});
+el.shadowColor.addEventListener('input',()=>drawAt(S.time));
+el.shadowBlur.addEventListener('input',()=>{el.shadowVal.textContent=el.shadowBlur.value; drawAt(S.time);});
+
+el.tBg.addEventListener('click',()=>{
+  toggle(el.tBg, !getToggle(el.tBg));
+  el.bgOpts.style.display = getToggle(el.tBg) ? 'grid' : 'none';
+  drawAt(S.time);
+});
+el.bgColor.addEventListener('input',()=>drawAt(S.time));
+el.bgOpacity.addEventListener('input',()=>{el.bgVal.textContent=el.bgOpacity.value; drawAt(S.time);});
+
+el.wpc.addEventListener('change',()=>{regroup(); drawAt(S.time);});
+el.tCaps.addEventListener('click',()=>{toggle(el.tCaps, !getToggle(el.tCaps)); regroup(); drawAt(S.time);});
+el.vpos.addEventListener('change',()=>drawAt(S.time));
+
+el.ars.forEach(b=>{
+  b.addEventListener('click',()=>{
+    el.ars.forEach(x=>x.classList.toggle('active', x===b));
+    setAR(b.dataset.ar);
+  });
+});
+
+el.renderBg.addEventListener('change',()=>{
+  const g = el.renderBg.value==='green';
+  el.renderHint.innerHTML = g
+    ? 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green. Keeps black strokes!'
+    : 'In Premiere: place above footage → Opacity → Blend Mode → <b>Screen</b>. Note: black strokes will be invisible.';
+  drawAt(S.time);
+});
+
+/* =========================
+   Drawing functions
+   ========================= */
+
+function currentFont(){
+  return el.fontSelect.value || 'Impact';
+}
+
+function yFromPos(){
+  const h=cv.height;
+  const v = el.vpos.value;
+  if(v==='top') return Math.round(h*0.30);
+  if(v==='bottom') return Math.round(h*0.82);
+  return Math.round(h*0.52);
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  const rr=Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);
+  ctx.arcTo(x+w,y,x+w,y+h,rr);
+  ctx.arcTo(x+w,y+h,x,y+h,rr);
+  ctx.arcTo(x,y+h,x,y,rr);
+  ctx.arcTo(x,y,x+w,y,rr);
+  ctx.closePath();
+}
+
+function getActiveGroup(t){
+  for(const g of S.groups){
+    if(t>=g.start && t<g.end) return g;
+  }
+  return null;
+}
+function drawAt(t){
+  S.time = Math.max(0, Math.min(S.duration||0, t));
+  el.tcCur.textContent = fmtTC(S.time);
+  // background: preview uses selected render bg; render uses exact color
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const bgMode = el.renderBg.value;
+  if(S.rendering){
+    ctx.fillStyle = bgMode==='green' ? '#00FF00' : '#000000';
+  } else {
+    // preview: tint so you can see strokes
+    ctx.fillStyle = bgMode==='green' ? '#1a3a1a' : '#222222';
+  }
+  ctx.fillRect(0,0,cv.width,cv.height);
+
+  if(!S.groups.length){
+    ctx.fillStyle='#fff';
+    ctx.font='700 34px '+currentFont()+', sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText('DROP AN SRT', cv.width/2, cv.height/2);
+    return;
+  }
+
+  const g = getActiveGroup(S.time);
+  if(!g){
+    el.now.textContent='…';
+    return;
+  }
+
+  const caps = getToggle(el.tCaps);
+  const mode = el.mode.value;
+  const base = el.base.value;
+  const hi = el.hi.value;
+  const text = caps ? g.text.toUpperCase() : g.text;
+  const words = (caps ? g.wt.map(w=>({...w, word:w.word.toUpperCase()})) : g.wt);
+
+  const y = yFromPos();
+  const fontSize = +el.size.value;
+  const fontName = currentFont();
+  ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='alphabetic';
+
+  // measure line and optionally draw bg box
+  const measureText = (str)=>ctx.measureText(str).width;
+  const padX = Math.round(fontSize*0.55);
+  const padY = Math.round(fontSize*0.35);
+  const boxRadius = Math.round(fontSize*0.35);
+
+  const lineW = measureText(text);
+  const x = cv.width/2;
+  const topY = y - fontSize; // approx ascent
+  const boxW = lineW + padX*2;
+  const boxH = fontSize + padY*2;
+
+  if(getToggle(el.tBg)){
+    const bgc = el.bgColor.value;
+    const op = (+el.bgOpacity.value)/100;
+    const r=parseInt(bgc.slice(1,3),16), g1=parseInt(bgc.slice(3,5),16), b=parseInt(bgc.slice(5,7),16);
+    ctx.save();
+    ctx.fillStyle=`rgba(${r},${g1},${b},${op})`;
+    roundRect(ctx, x-boxW/2, topY-padY, boxW, boxH, boxRadius);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // shadow
+  if(getToggle(el.tShadow)){
+    ctx.shadowColor = el.shadowColor.value;
+    ctx.shadowBlur = +el.shadowBlur.value;
+    ctx.shadowOffsetX = Math.round(fontSize*0.06);
+    ctx.shadowOffsetY = Math.round(fontSize*0.06);
+  } else {
+    ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+  }
+
+  // stroke
+  const doStroke = getToggle(el.tStroke) && (+el.strokeW.value>0);
+  if(mode==='pop'){
+    ctx.fillStyle = hi;
+    if(doStroke){
+      ctx.strokeStyle = el.strokeColor.value;
+      ctx.lineWidth = +el.strokeW.value;
+      ctx.strokeText(text, x, y);
+    }
+    ctx.fillText(text, x, y);
+    el.now.textContent = text;
+    return;
+  }
+
+  // karaoke: highlight active word
+  let activeIdx = 0;
+  for(let i=0;i<words.length;i++){
+    if(S.time>=words[i].start && S.time<words[i].end){ activeIdx=i; break; }
+    if(S.time>=words[i].end) activeIdx=i;
+  }
+
+  // draw word by word centered
+  const parts = words.map(w=>w.word);
+  const full = parts.join(' ');
+  const fullW = measureText(full);
+  let startX = x - fullW/2;
+  ctx.textAlign='left';
+  for(let i=0;i<parts.length;i++){
+    const w = parts[i];
+    const isActive = i===activeIdx;
+    ctx.fillStyle = isActive ? hi : base;
+    if(doStroke){
+      ctx.strokeStyle = el.strokeColor.value;
+      ctx.lineWidth = +el.strokeW.value;
+      ctx.strokeText(w, startX, y);
+    }
+    ctx.fillText(w, startX, y);
+    startX += measureText(w + (i<parts.length-1?' ':''));
+  }
+  el.now.textContent = parts[activeIdx] || full;
+}
+
+/* regroup based on words per caption */
+function regroup(){
+  if(!S.words.length){ S.groups=[]; return; }
+  const sz = parseInt(el.wpc.value,10) || 2;
+  const grouped = groupWords(S.words, sz);
+  // rebuild text with caps toggle
+  const caps = getToggle(el.tCaps);
+  S.groups = grouped.map(g=>({
+    ...g,
+    text: caps ? g.text.toUpperCase() : g.text,
+    wt: caps ? g.wt.map(w=>({...w, word:w.word.toUpperCase()})) : g.wt
+  }));
+}
+
+/* playback */
+function tick(ts){
+  if(!S.playing) return;
+  if(!S.last) S.last=ts;
+  const dt=(ts-S.last)/1000;
+  S.last=ts;
+  S.time += dt;
+  if(S.time>=S.duration){ S.time=S.duration; S.playing=false; el.play.textContent='▶'; }
+  drawAt(S.time);
+  el.scrub.value = S.duration ? Math.floor((S.time/S.duration)*1000) : 0;
+  S.raf=requestAnimationFrame(tick);
+}
+el.play.addEventListener('click',()=>{
+  if(!S.groups.length) return;
+  S.playing=!S.playing;
+  el.play.textContent = S.playing ? '❚❚' : '▶';
+  if(S.playing){ S.last=0; S.raf=requestAnimationFrame(tick); }
+  else cancelAnimationFrame(S.raf);
+});
+el.restart.addEventListener('click',()=>{
+  S.time=0; S.last=0; drawAt(0); el.scrub.value=0;
+});
+el.scrub.addEventListener('input',()=>{
+  if(!S.duration) return;
+  const t=(+el.scrub.value/1000)*S.duration;
+  S.time=t; drawAt(t);
+});
+
+/* =========================
+   Video render — MP4 via WebCodecs (tries multiple H.264 profiles)
+   Falls back to MediaRecorder WebM only if everything fails
+   ========================= */
+async function renderVideo(){
+  if(!S.groups.length) return;
+
+  el.ov.classList.add('show');
+  el.barFill.style.width='0%';
+  el.ovTxt.textContent='Preparing…';
+
+  const origTime = S.time;
+  const origPlaying = S.playing;
+  S.playing = false;
+  S.rendering = true;
+
+  const fps = 30;
+  const duration = S.duration;
+  const totalFrames = Math.ceil(duration * fps);
+  const [w,h] = [cv.width, cv.height];
+  const bitrate = Math.max(2_000_000, Math.min(10_000_000, w*h*fps*0.08));
+
+  let blob, ext='mp4';
+
+  // === PATH A: WebCodecs + mp4-muxer → real MP4 ===
+  if('VideoEncoder' in window){
+    try {
+      el.ovTxt.textContent='Loading MP4 library…';
+      const mp4mod = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@4.3.3/+esm');
+      const { Muxer, ArrayBufferTarget } = mp4mod;
+
+      // try multiple H.264 profiles × acceleration modes until one works
+      const codecs = [
+        'avc1.4D401E',  // Main 3.0
+        'avc1.4D4028',  // Main 4.0
+        'avc1.640028',  // High 4.0
+        'avc1.42E01E',  // Constrained Baseline 3.0
+        'avc1.42001E',  // Baseline 3.0
+      ];
+      const accels = ['prefer-software','prefer-hardware','no-preference'];
+
+      let chosenCodec = null;
+      let chosenAccel = 'no-preference';
+      outer: for(const c of codecs){
+        for(const a of accels){
+          try {
+            const sup = await VideoEncoder.isConfigSupported({
+              codec:c, width:w, height:h, bitrate, framerate:fps,
+              hardwareAcceleration:a
+            });
+            if(sup.supported){ chosenCodec = c; chosenAccel = a; break outer; }
+          } catch(e){}
+        }
+      }
+
+      if(chosenCodec){
+        el.ovTxt.textContent = `Encoding MP4…`;
+
+        const target = new ArrayBufferTarget();
+        const muxer = new Muxer({
+          target,
+          video:{ codec:'avc', width:w, height:h, frameRate:fps },
+          fastStart:'in-memory'
+        });
+
+        const encoder = new VideoEncoder({
+          output:(chunk,meta)=> muxer.addVideoChunk(chunk,meta),
+          error:(e)=>{ throw e; }
+        });
+        encoder.configure({
+          codec:chosenCodec, width:w, height:h, bitrate, framerate:fps,
+          hardwareAcceleration: chosenAccel
+        });
+
+        const off = document.createElement('canvas');
+        off.width=w; off.height=h;
+        const offCtx = off.getContext('2d');
+
+        for(let i=0; i<totalFrames; i++){
+          drawAt(Math.min(duration, i/fps));
+          offCtx.drawImage(cv,0,0);
+          const vf = new VideoFrame(off, {
+            timestamp: i * Math.round(1_000_000/fps),
+            duration: Math.round(1_000_000/fps)
+          });
+          encoder.encode(vf);
+          vf.close();
+          if(i%10===0){
+            el.barFill.style.width = Math.round((i/totalFrames)*100)+'%';
+            el.ovTxt.textContent = `Encoding ${Math.round((i/totalFrames)*100)}%`;
+            await new Promise(r=>setTimeout(r,0));
+          }
+        }
+
+        await encoder.flush();
+        muxer.finalize();
+        encoder.close();
+        blob = new Blob([target.buffer], {type:'video/mp4'});
+        ext = 'mp4';
+      }
+    } catch(e){
+      console.warn('MP4 path failed, falling back:', e);
+    }
+  }
+
+  // === PATH B: MediaRecorder fallback ===
+  if(!blob){
+    try {
+      el.ovTxt.textContent='Recording (fallback)…';
+      const types = ['video/webm;codecs=h264','video/webm;codecs=vp9','video/webm'];
+      const mime = types.find(t=>MediaRecorder.isTypeSupported(t)) || 'video/webm';
+      ext = 'webm';
+
+      const stream = cv.captureStream(0);
+      const track = stream.getVideoTracks()[0];
+      const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond:bitrate });
+      const chunks = [];
+      rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
+      rec.start(50);
+
+      for(let i=0; i<totalFrames; i++){
+        drawAt(Math.min(duration, i/fps));
+        if(track.requestFrame) track.requestFrame();
+        if(i%8===0){
+          el.barFill.style.width = Math.round((i/totalFrames)*100)+'%';
+          el.ovTxt.textContent = `Recording ${Math.round((i/totalFrames)*100)}%`;
+          await new Promise(r=>setTimeout(r,0));
+        }
+      }
+      await new Promise(r=>setTimeout(r,100));
+      blob = await new Promise(resolve=>{
+        rec.onstop = ()=> resolve(new Blob(chunks, {type:mime}));
+        rec.stop();
+      });
+    } catch(e2){
+      console.error(e2);
+      S.rendering = false;
+      el.ov.classList.remove('show');
+      S.time=origTime; S.playing=origPlaying; drawAt(S.time);
+      alert('Render failed: ' + e2.message);
+      return;
+    }
+  }
+
+  // Restore & offer download
+  S.rendering = false;
+  S.time = origTime;
+  if(origPlaying) S.playing = true;
+  drawAt(S.time);
+
+  S.blob = blob;
+  el.dlA.href = URL.createObjectURL(blob);
+  el.dlA.download = `${S.filename||'wordpunch'}_overlay.${ext}`;
+  const g = el.renderBg.value==='green';
+  el.dlHint.innerHTML = g
+    ? 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green'
+    : 'In Premiere: place above footage → Opacity → Blend Mode → <b>Screen</b>';
+  el.dl.classList.add('show');
+  el.ov.classList.remove('show');
+}
+
+el.render.addEventListener('click', ()=> renderVideo());
+
+/* init aspect ratio */
+setAR('16:9');
+</script>
+</body>
+</html>
