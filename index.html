@@ -111,7 +111,7 @@
       <div class="card-b">
         <div class="srt-instructions">
           <div class="srt-inst-title">⚠︎ Export from Premiere first</div>
-          <div class="srt-inst-body">For word-by-word timing, each word needs its own caption line. In Premiere's <strong>Captions</strong> panel, use these settings when making captions:</div>
+          <div class="srt-inst-body">For word-by-word timing, each word needs its own caption line. In Premiere's <strong>Captions</strong> panel, use these settings:</div>
           <div class="srt-settings">
             <div class="srt-row"><span class="srt-label">Max length</span><span class="srt-val">7 chars</span></div>
             <div class="srt-row"><span class="srt-label">Min duration</span><span class="srt-val">1.2 sec</span></div>
@@ -322,7 +322,7 @@
       <div class="tc"><b id="tcCur">00:00.000</b> / <span id="tcTot">00:00.000</span></div>
     </div>
     <div class="canvaswrap">
-      <div class="outer"><canvas id="cv" width="960" height="540"></canvas></div>
+      <div class="outer"><canvas id="cv" width="1920" height="1080"></canvas></div>
       <div class="overlay" id="ov">
         <div style="font-size:20px;color:var(--accent);letter-spacing:1px">Rendering…</div>
         <div class="bar"><div id="barFill"></div></div>
@@ -590,7 +590,7 @@ function buildPresets(){
 /* =========================
    Canvas + drawing (must init before presets call drawAt)
    ========================= */
-const DIMS = {'16:9':[960,540],'9:16':[540,960],'1:1':[540,540]};
+const DIMS = {'16:9':[1920,1080],'9:16':[1080,1920],'1:1':[1080,1080]};
 const cv = el.cv;
 const ctx = cv.getContext('2d');
 
