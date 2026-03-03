@@ -302,18 +302,30 @@
       <div class="card-h"><div class="step">4</div> Export</div>
       <div class="card-b">
         <div class="field">
-          <label>Render Background</label>
-          <select id="renderBg">
-            <option value="green">🟢 Green Screen (Ultra Key in Premiere)</option>
-            <option value="blue">🔵 Blue Screen (Ultra Key — use with green fonts)</option>
-            <option value="black">⬛ Black (Screen blend in Premiere)</option>
-          </select>
+          <label>Format</label>
+          <div class="ar-tabs">
+            <button class="ar active" id="fmtMp4">MP4</button>
+            <button class="ar" id="fmtPng">PNG Sequence</button>
+          </div>
         </div>
-        <div class="hint" id="renderHint" style="margin-bottom:8px">In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green. Keeps dark strokes &amp; shadows!</div>
+        <div id="bgSection">
+          <div class="field">
+            <label>Render Background</label>
+            <select id="renderBg">
+              <option value="green">🟢 Green Screen (Ultra Key in Premiere)</option>
+              <option value="blue">🔵 Blue Screen (Ultra Key — use with green fonts)</option>
+              <option value="black">⬛ Black (Screen blend in Premiere)</option>
+            </select>
+          </div>
+          <div class="hint" id="renderHint" style="margin-bottom:8px">In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green. Keeps dark strokes &amp; shadows!</div>
+        </div>
+        <div id="pngSection" style="display:none">
+          <div class="hint" style="margin-bottom:0">Exports a <strong>.zip</strong> of PNG frames with real alpha — no keying needed.<br>In Premiere: File → Import → select first frame → check <strong>Image Sequence</strong>.</div>
+        </div>
       </div>
     </div>
 
-    <button class="btn" id="render" disabled>RENDER MP4</button>
+    <button class="btn" id="render" disabled>RENDER</button>
   </div>
 
   <div class="main">
@@ -341,10 +353,10 @@
     </div>
     <div class="dl" id="dl">
       <div>
-        <div style="font-weight:900;color:var(--good)">Video ready!</div>
+        <div style="font-weight:900;color:var(--good)" id="dlTitle">Video ready!</div>
         <div id="dlHint" style="color:var(--muted);font-size:12px">In Premiere: place above footage → Effects → Ultra Key → pick the green</div>
       </div>
-      <a id="dlA" href="#" download="wordpunch_overlay.mp4">Download MP4</a>
+      <a id="dlA" href="#" download="wordpunch_overlay.mp4">Download</a>
     </div>
   </div>
 </div>
@@ -481,6 +493,9 @@ const el = {
   ov: qs('#ov'), barFill: qs('#barFill'), ovTxt: qs('#ovTxt'),
   dl: qs('#dl'), dlA: qs('#dlA'), dlHint: qs('#dlHint'),
   renderBg: qs('#renderBg'), renderHint: qs('#renderHint'),
+  fmtMp4: qs('#fmtMp4'), fmtPng: qs('#fmtPng'),
+  bgSection: qs('#bgSection'), pngSection: qs('#pngSection'),
+  dlTitle: qs('#dlTitle'),
   animMode: qs('#animMode'), animSpeed: qs('#animSpeed'), animSpeedVal: qs('#animSpeedVal'), animSpeedField: qs('#animSpeedField'),
   fontFile: qs('#fontFile'), fontDrop: qs('#fontDrop'), fontSt: qs('#fontSt'),
   importPreset: qs('#importPreset'), exportPreset: qs('#exportPreset'),
@@ -761,6 +776,19 @@ el.renderBg.addEventListener('change',()=>{
   drawAt(S.time);
 });
 
+// Format toggle: MP4 vs PNG Sequence
+function setFormat(fmt){
+  S.exportFmt = fmt;
+  el.fmtMp4.classList.toggle('active', fmt==='mp4');
+  el.fmtPng.classList.toggle('active', fmt==='png');
+  el.bgSection.style.display  = fmt==='mp4' ? 'block' : 'none';
+  el.pngSection.style.display = fmt==='png' ? 'block' : 'none';
+  el.render.textContent = fmt==='png' ? 'EXPORT PNG ZIP' : 'RENDER MP4';
+}
+el.fmtMp4.addEventListener('click', ()=> setFormat('mp4'));
+el.fmtPng.addEventListener('click', ()=> setFormat('png'));
+S.exportFmt = 'mp4';
+
 el.animMode.addEventListener('change',()=>{
   el.animSpeedField.style.display = (el.animMode.value === 'none') ? 'none' : 'block';
   drawAt(S.time);
@@ -985,12 +1013,17 @@ function drawAt(t){
   el.tcCur.textContent = fmtTC(S.time);
   ctx.clearRect(0,0,cv.width,cv.height);
   const bgMode = el.renderBg.value;
-  if(S.rendering){
+  const isPng = S.exportFmt === 'png';
+  if(isPng && S.rendering){
+    // True transparent background for PNG sequence
+    ctx.clearRect(0,0,cv.width,cv.height);
+  } else if(S.rendering){
     ctx.fillStyle = bgMode==='green' ? '#00FF00' : bgMode==='blue' ? '#0000FF' : '#000000';
+    ctx.fillRect(0,0,cv.width,cv.height);
   } else {
     ctx.fillStyle = bgMode==='green' ? '#1a3a1a' : bgMode==='blue' ? '#0a0a2a' : '#222222';
+    ctx.fillRect(0,0,cv.width,cv.height);
   }
-  ctx.fillRect(0,0,cv.width,cv.height);
 
   if(!S.groups.length){
     ctx.fillStyle='#fff';
@@ -1176,24 +1209,16 @@ function drawAt(t){
     const maxLW = cv.width * 0.82;
     const lines3 = wrapWordsToLines(words, maxLW);
     const lineH3  = fontSize * 1.3;
-    const ghostSz = fontSize * 1.1;
-
-    // Build heights from top of box downward (all relative to box top `by`):
-    //   boxPadY  → main text top padding
-    //   + fontSize × lines  → main text baselines
-    //   + ghostSz * 1.1  → gap + ghost baseline (if ghost exists)
-    //   + boxPadY  → bottom padding
+    const ghostSz = fontSize * 0.85;
     const hasGhost = !!nextG;
-    const mainH  = boxPadY + fontSize + (lines3.length - 1) * lineH3;  // offset to last main baseline
-    const ghostOffset = hasGhost ? lineH3 * 0.45 + ghostSz : 0;        // gap then ghost baseline
-    const totalBH = mainH + ghostOffset + boxPadY * 0.9;
-
-    const maxTW   = Math.max(...lines3.map(l=>measureText(l.map(w=>w.word).join(' '))));
-    // Measure ghost text at ghost font size so box is always wide enough
+    const mainH       = boxPadY + fontSize + (lines3.length - 1) * lineH3;
+    const ghostOffset = hasGhost ? lineH3 * 0.5 + ghostSz : 0;
+    const totalBH     = mainH + ghostOffset + boxPadY * 0.9;
+    const maxTW = Math.max(...lines3.map(l=>measureText(l.map(w=>w.word).join(" "))));
     let ghostTW = 0;
     if(nextG){
       ctx.save();
-      ctx.font = `900 ${ghostSz}px '${fontName}', sans-serif`;
+      ctx.font = `900 ${ghostSz}px "${fontName}", sans-serif`;
       const _gt = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
       ghostTW = ctx.measureText(_gt).width;
       ctx.restore();
@@ -1202,35 +1227,45 @@ function drawAt(t){
     const totalBW = Math.min(cv.width*0.92, Math.max(maxTW, ghostTW) + boxPadX*2);
     const bx = (cv.width-totalBW)/2;
     const by = yFromPos() - totalBH/2;
-
     drawBgBox(bx, by, totalBW, totalBH, fontSize*0.45);
-
-    // Draw main text lines
-    ctx.textAlign='left';
+    const groupDur  = Math.max(0.01, g.end - g.start);
+    const elapsed   = S.time - g.start;
+    const TRANS_DUR = Math.min(0.25, groupDur * 0.25);
+    const transRaw  = Math.max(0, (elapsed - (groupDur - TRANS_DUR)) / TRANS_DUR);
+    const transP    = Math.min(1, transRaw);
+    const transEase = transP < 0.5 ? 2*transP*transP : -1+(4-2*transP)*transP;
+    ctx.textAlign = "left";
     const tsy = by + boxPadY + fontSize;
+    const mainSlide = transEase * lineH3 * 0.6;
+    const mainAlpha = 1 - transEase * 0.9;
     for(let li=0; li<lines3.length; li++){
       let lx = bx + boxPadX;
-      const ly = tsy + li * lineH3;
-      for(const wrd of lines3[li]){
-        drawWord(wrd.word, lx, ly, base);
-        lx += measureText(wrd.word + ' ');
+      const ly = tsy + li * lineH3 - mainSlide;
+      for(let wi=0; wi<lines3[li].length; wi++){
+        const wrd = lines3[li][wi];
+        const wordIdx = words.indexOf(wrd);
+        const tr = wordEntryTransform(wordIdx, words.length);
+        if(tr.skip){ lx += measureText(wrd.word + " "); continue; }
+        drawWord(wrd.word, lx, ly - tr.oy, base, mainAlpha * tr.alpha, tr.sx, tr.sy, 0);
+        lx += measureText(wrd.word + " ");
       }
     }
-
-    // Draw ghost — next group's text, faded, clipped to box so it never spills
     if(nextG){
-      const ghostTxt = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
-      const ghostY   = by + mainH + ghostOffset;
+      const ghostTxt   = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
+      const ghostBaseY = by + mainH + ghostOffset;
+      const ghostCurY  = ghostBaseY - transEase * (ghostBaseY - tsy);
+      const ghostAlpha = 0.28 + transEase * 0.72;
       ctx.save();
       ctx.beginPath();
-      ctx.rect(bx, by, totalBW, totalBH);
+      ctx.rect(bx, by - fontSize, totalBW, totalBH + fontSize * 1.5);
       ctx.clip();
-      ctx.globalAlpha = 0.25;
-      ctx.font = `900 ${ghostSz}px '${fontName}', sans-serif`;
-      ctx.textAlign = 'left';
+      ctx.globalAlpha = ghostAlpha;
+      ctx.font = `900 ${ghostSz}px "${fontName}", sans-serif`;
+      ctx.textAlign = "left";
       ctx.fillStyle = base;
-      ctx.fillText(ghostTxt, bx + boxPadX, ghostY);
+      ctx.fillText(ghostTxt, bx + boxPadX, ghostCurY);
       ctx.restore();
+      ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
     }
     el.now.textContent = text; return;
   }
@@ -1551,11 +1586,93 @@ async function renderVideo(){
     : bgv==='blue'
     ? 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the blue'
     : 'In Premiere: place above footage → Opacity → Blend Mode → <b>Screen</b>';
+  el.dlTitle.textContent = 'Video ready!';
   el.dl.classList.add('show');
   el.ov.classList.remove('show');
 }
 
-el.render.addEventListener('click', ()=> renderVideo());
+
+/* =========================
+   PNG Sequence → ZIP export
+   ========================= */
+async function renderPngZip(){
+  if(!S.groups.length) return;
+
+  el.ov.classList.add('show');
+  el.barFill.style.width='0%';
+  el.ovTxt.textContent='Loading ZIP library…';
+
+  const origTime = S.time;
+  const origPlaying = S.playing;
+  S.playing = false;
+  S.rendering = true;
+
+  try {
+    // Load fflate for in-browser ZIP
+    const { zipSync, strToU8 } = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm');
+
+    const fps = 30;
+    const duration = S.duration;
+    const totalFrames = Math.ceil(duration * fps);
+    const [w,h] = [cv.width, cv.height];
+    const files = {};
+
+    // Off-screen canvas for rendering frames
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    const offCtx = off.getContext('2d');
+
+    for(let i = 0; i < totalFrames; i++){
+      drawAt(Math.min(duration, i/fps));
+      offCtx.clearRect(0,0,w,h);
+      offCtx.drawImage(cv,0,0);
+
+      // toBlob → ArrayBuffer
+      const blob = await new Promise(res => off.toBlob(res, 'image/png'));
+      const buf  = await blob.arrayBuffer();
+      const pad  = String(i).padStart(6,'0');
+      files[`frame_${pad}.png`] = new Uint8Array(buf);
+
+      if(i % 5 === 0){
+        el.barFill.style.width = Math.round((i/totalFrames)*100)+'%';
+        el.ovTxt.textContent   = `Exporting frame ${i+1} / ${totalFrames}`;
+        await new Promise(r=>setTimeout(r,0));
+      }
+    }
+
+    el.ovTxt.textContent = 'Zipping…';
+    await new Promise(r=>setTimeout(r,0));
+
+    const zipped = zipSync(files, { level: 0 }); // store only — PNGs are already compressed
+    const zipBlob = new Blob([zipped], { type:'application/zip' });
+
+    S.rendering = false;
+    S.time = origTime;
+    if(origPlaying) S.playing = true;
+    drawAt(S.time);
+
+    el.dlTitle.textContent = 'PNG sequence ready!';
+    el.dlA.href     = URL.createObjectURL(zipBlob);
+    el.dlA.download = `${S.filename||'wordpunch'}_alpha.zip`;
+    el.dlHint.innerHTML = 'In Premiere: File → Import → select <b>frame_000000.png</b> → check <b>Image Sequence</b>. True alpha, no keying needed.';
+    el.dl.classList.add('show');
+
+  } catch(e){
+    console.error(e);
+    S.rendering = false;
+    S.time = origTime;
+    if(origPlaying) S.playing = true;
+    drawAt(S.time);
+    alert('PNG export failed: ' + e.message);
+  }
+
+  el.ov.classList.remove('show');
+}
+
+el.render.addEventListener('click', ()=>{
+  if(S.exportFmt === 'png') renderPngZip();
+  else renderVideo();
+});
 
 /* init aspect ratio */
 setAR('16:9');
