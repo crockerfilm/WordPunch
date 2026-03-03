@@ -290,9 +290,9 @@
         <div class="field">
           <label>Aspect Ratio</label>
           <div class="ar-tabs">
-            <button class="ar" data-ar="9:16">9:16</button>
-            <button class="ar active" data-ar="16:9">16:9</button>
-            <button class="ar" data-ar="1:1">1:1</button>
+            <button class="ar ar-btn" data-ar="9:16">9:16</button>
+            <button class="ar ar-btn active" data-ar="16:9">16:9</button>
+            <button class="ar ar-btn" data-ar="1:1">1:1</button>
           </div>
         </div>
       </div>
@@ -484,7 +484,7 @@ const el = {
   tWrap: qs('#tWrap'), wrapOpts: qs('#wrapOpts'), wrapWidth: qs('#wrapWidth'), wrapVal: qs('#wrapVal'),
   letterSpacing: qs('#letterSpacing'), lsVal: qs('#lsVal'),
   vpos: qs('#vpos'),
-  ars: qsa('.ar'),
+  ars: qsa('.ar-btn'),
   cv: qs('#cv'),
   tcCur: qs('#tcCur'), tcTot: qs('#tcTot'),
   play: qs('#play'), restart: qs('#restart'),
@@ -539,7 +539,7 @@ function applyPreset(key){
   el.bgColor.value = p.bgColor;
   el.bgOpacity.value = p.bgOp; el.bgVal.textContent = p.bgOp;
 
-  el.wpc.value = String(2);
+  if(p.wpc !== undefined){ el.wpc.value = String(p.wpc); }
   toggle(el.tCaps, p.caps);
   el.vpos.value = p.vpos;
 
@@ -555,8 +555,16 @@ function applyPreset(key){
   // Show/hide anim speed based on animMode
   el.animSpeedField.style.display = (el.animMode.value === 'none') ? 'none' : 'block';
 
+
+  if(p.animSpeed !== undefined){ el.animSpeed.value = p.animSpeed; el.animSpeedVal.textContent = (p.animSpeed/1000).toFixed(2); }
+  if(p.letterSpacing !== undefined){ el.letterSpacing.value = p.letterSpacing; el.lsVal.textContent = p.letterSpacing; }
+  if(p.ar !== undefined && typeof setAR === 'function'){
+    setAR(p.ar);
+    qsa('.ar-btn').forEach(x=>x.classList.toggle('active', x.dataset.ar===p.ar));
   regroup();
   drawAt(S.time);
+  }
+  if(p.exportFmt !== undefined && typeof setFormat === 'function'){ setFormat(p.exportFmt); }
 }
 
 /* Build preset cards */
@@ -875,6 +883,7 @@ function captureCurrentSettings(){
     name: 'Custom',
     mode: el.mode.value,
     animMode: el.animMode.value,
+    animSpeed: +el.animSpeed.value,
     font: el.fontSelect.value,
     size: +el.size.value,
     base: el.base.value,
@@ -889,9 +898,13 @@ function captureCurrentSettings(){
     bgColor: el.bgColor.value,
     bgOp: +el.bgOpacity.value,
     caps: getToggle(el.tCaps),
+    wpc: +el.wpc.value,
+    letterSpacing: +el.letterSpacing.value,
     vpos: el.vpos.value,
     wrapEnabled: getToggle(el.tWrap),
     wrapWidth: +el.wrapWidth.value,
+    ar: S.ar,
+    exportFmt: S.exportFmt || 'mp4',
   };
 }
 
