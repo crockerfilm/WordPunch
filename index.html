@@ -31,6 +31,7 @@
   .status{margin-top:10px;font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;display:none}
   .status.good{display:block;background:rgba(62,207,108,.08);border-color:rgba(62,207,108,.25);color:var(--good)}
   .status.bad{display:block;background:rgba(224,88,88,.08);border-color:rgba(224,88,88,.25);color:var(--bad)}
+  .status.warn{display:block;background:rgba(245,197,24,.07);border-color:rgba(245,197,24,.28);color:var(--accent)}
   .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .preset{border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:.15s;background:rgba(255,255,255,.02)}
   .preset:hover{border-color:rgba(245,197,24,.55)}
@@ -81,6 +82,19 @@
   .bar>div{height:100%;width:0%;background:var(--accent);transition:width .1s}
   .small{color:var(--muted);font-size:12px;font-weight:600;text-align:center;max-width:420px}
   select{font-family:inherit}
+  .preset-io{display:flex;gap:8px;margin-top:10px}
+  .preset-btn{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);font-size:11px;font-weight:800;cursor:pointer;transition:.15s;letter-spacing:.3px}
+  .preset-btn:hover{border-color:rgba(245,197,24,.5);color:var(--text)}
+  .preset-btn-accent{border-color:rgba(245,197,24,.35);color:var(--accent);background:rgba(245,197,24,.05)}
+  .preset-btn-accent:hover{background:rgba(245,197,24,.1)}
+  .srt-instructions{background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.22);border-radius:8px;padding:11px 12px;margin-bottom:11px}
+  .srt-inst-title{font-size:11px;font-weight:900;color:var(--accent);letter-spacing:.5px;margin-bottom:6px}
+  .srt-inst-body{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:9px}
+  .srt-settings{background:rgba(0,0,0,.25);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;margin-bottom:9px}
+  .srt-row{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+  .srt-label{color:var(--muted)}
+  .srt-val{font-family:ui-monospace,monospace;color:var(--accent);font-weight:700;font-size:11px;background:rgba(245,197,24,.1);border-radius:4px;padding:1px 6px}
+  .srt-inst-sub{font-size:11px;color:var(--muted);line-height:1.4}
 </style>
 </head>
 <body>
@@ -95,7 +109,17 @@
     <div class="card">
       <div class="card-h"><div class="step">1</div> Import SRT</div>
       <div class="card-b">
-        <div class="hint">Drop an <strong>.srt</strong> here or click to browse.</div>
+        <div class="srt-instructions">
+          <div class="srt-inst-title">⚠︎ Export from Premiere first</div>
+          <div class="srt-inst-body">For word-by-word timing, each word needs its own caption line. In Premiere's <strong>Captions</strong> panel, use these settings when making captions:</div>
+          <div class="srt-settings">
+            <div class="srt-row"><span class="srt-label">Max length</span><span class="srt-val">7 chars</span></div>
+            <div class="srt-row"><span class="srt-label">Min duration</span><span class="srt-val">1.2 sec</span></div>
+            <div class="srt-row"><span class="srt-label">Gap between captions</span><span class="srt-val">0 frames</span></div>
+            <div class="srt-row"><span class="srt-label">Lines</span><span class="srt-val">Single</span></div>
+          </div>
+          <div class="srt-inst-sub">Export: <strong>Text panel</strong> → Captions tab → <strong>⋯</strong> → <em>Export to SRT file…</em></div>
+        </div>
         <input id="file" type="file" accept=".srt" hidden>
         <div class="drop" id="drop"><strong>Click to browse</strong> or drag &amp; drop</div>
         <div class="status" id="st"></div>
@@ -106,6 +130,12 @@
       <div class="card-h"><div class="step">2</div> Style preset</div>
       <div class="card-b">
         <div class="preset-grid" id="presets"></div>
+        <div class="preset-io">
+          <input id="presetFile" type="file" accept=".json" hidden>
+          <button class="preset-btn" id="importPreset">⬆ Import</button>
+          <button class="preset-btn preset-btn-accent" id="exportPreset">⬇ Save preset</button>
+        </div>
+        <div class="status" id="presetSt"></div>
       </div>
     </div>
 
@@ -147,6 +177,15 @@
             <label>Font Family</label>
             <select id="fontSelect"></select>
           </div>
+        </div>
+
+        <div class="field" style="margin-top:-4px">
+          <label>Custom Font <span style="color:var(--muted);font-weight:400;font-size:10px">— .ttf .otf .woff .woff2</span></label>
+          <input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden>
+          <div class="drop" id="fontDrop" style="margin-top:0;padding:10px 14px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px">
+            <span style="font-size:16px">🔤</span><span><strong>Click to upload</strong> or drag a font file</span>
+          </div>
+          <div class="status" id="fontSt"></div>
         </div>
 
         <div class="field">
@@ -383,20 +422,17 @@ function groupWords(words, size){
    State
    ========================= */
 const PRESETS = {
-  // Style × Entry combos — each one shows something distinct
-  classic:{name:"CLASSIC",  desc:"Highlight · Slam",           font:"Impact",          size:88, base:"#FFFFFF", hi:"#FFD700", stroke:true,  strokeColor:"#000000", strokeW:5,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"bottom", animMode:"slam",       mode:"karaoke",  wrapEnabled:false, wrapWidth:80},
-  pill:   {name:"PILL",     desc:"Highlight · Fade Up",        font:"Poppins",         size:56, base:"#FFFFFF", hi:"#60B4FF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#000000", bgOp:68,  caps:false, vpos:"bottom", animMode:"fadeup",     mode:"karaoke",  wrapEnabled:false, wrapWidth:80},
-  bold:   {name:"BOLD",     desc:"Solid · Bounce",             font:"Anton",           size:90, base:"#FFFFFF", hi:"#FF5C00", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:true,  shadowColor:"#000000", shadowBlur:20, bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"bounce",     mode:"solid",    wrapEnabled:false, wrapWidth:80},
-  wbox:   {name:"WORD BOX", desc:"Word Box · Typewriter",      font:"Arial Black",     size:74, base:"#FFFFFF", hi:"#F5C518", stroke:true,  strokeColor:"#000000", strokeW:3,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"typewriter", mode:"wordbox",  wrapEnabled:false, wrapWidth:80},
-  stack:  {name:"STACKED",  desc:"Highlight · Wrap · None",   font:"Impact",          size:82, base:"#FFFFFF", hi:"#FFD700", stroke:true,  strokeColor:"#000000", strokeW:4,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"none",       mode:"karaoke",  wrapEnabled:true,  wrapWidth:72},
-  dim:    {name:"DIM",      desc:"Dim · Scale Pop",            font:"Poppins",         size:68, base:"#FFFFFF", hi:"#FFFFFF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:true,  shadowColor:"#000000", shadowBlur:14, bg:false, bgColor:"#000000", bgOp:0,   caps:false, vpos:"center", animMode:"scale",      mode:"dim",      wrapEnabled:false, wrapWidth:80},
-  ghost:  {name:"GHOST",    desc:"Ghost Line · None",          font:"Arial Black",     size:62, base:"#FFFFFF", hi:"#FFFFFF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#111111", bgOp:88,  caps:true,  vpos:"center", animMode:"none",       mode:"ghostline",wrapEnabled:false, wrapWidth:80},
-  card:   {name:"CARD",     desc:"Two-tone · None",            font:"Montserrat",      size:58, base:"#111111", hi:"#AAAAAA", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#F2F2F2", bgOp:100, caps:false, vpos:"bottom", animMode:"none",       mode:"twobox",   wrapEnabled:false, wrapWidth:80},
-  reveal: {name:"REVEAL",   desc:"Highlight · Letters",        font:"Poppins",         size:72, base:"#FFFFFF", hi:"#FFD700", stroke:true,  strokeColor:"#000000", strokeW:3,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:false, vpos:"center", animMode:"letters",    mode:"karaoke",  wrapEnabled:false, wrapWidth:80},
+  // 6 clean starting points — one mode + one entry each, easy to amp up
+  clean:  {name:"CLEAN",   desc:"Highlight · Fade Up",    font:"Poppins",     size:70, base:"#FFFFFF", hi:"#FFD700", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:false, vpos:"bottom", animMode:"fadeup",     mode:"karaoke",  wrapEnabled:false, wrapWidth:80},
+  punch:  {name:"PUNCH",   desc:"Solid · Slam",           font:"Impact",      size:88, base:"#FFFFFF", hi:"#FF4444", stroke:true,  strokeColor:"#000000", strokeW:5,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"slam",       mode:"solid",    wrapEnabled:false, wrapWidth:80},
+  pill:   {name:"PILL",    desc:"Highlight · Typewriter", font:"Montserrat",  size:58, base:"#FFFFFF", hi:"#5BE5A0", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#000000", bgOp:75,  caps:false, vpos:"bottom", animMode:"typewriter", mode:"karaoke",  wrapEnabled:false, wrapWidth:80},
+  focus:  {name:"FOCUS",   desc:"Dim · Scale Pop",        font:"DM Sans",     size:68, base:"#FFFFFF", hi:"#FFFFFF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:true,  shadowColor:"#000000", shadowBlur:18, bg:false, bgColor:"#000000", bgOp:0,   caps:false, vpos:"center", animMode:"scale",      mode:"dim",      wrapEnabled:false, wrapWidth:80},
+  ticker: {name:"TICKER",  desc:"Ghost · None",           font:"Arial Black", size:58, base:"#FFFFFF", hi:"#FFFFFF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#111111", bgOp:90,  caps:true,  vpos:"center", animMode:"none",       mode:"ghostline",wrapEnabled:false, wrapWidth:80},
+  marker: {name:"MARKER",  desc:"Word Box · Bounce",      font:"Anton",       size:76, base:"#FFFFFF", hi:"#F5C518", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"bounce",     mode:"wordbox",  wrapEnabled:false, wrapWidth:80},
 };
 
 const S = {
-  preset:"classic",
+  preset:"clean",
   entries:[],
   words:[],
   groups:[],
@@ -446,10 +482,13 @@ const el = {
   dl: qs('#dl'), dlA: qs('#dlA'), dlHint: qs('#dlHint'),
   renderBg: qs('#renderBg'), renderHint: qs('#renderHint'),
   animMode: qs('#animMode'), animSpeed: qs('#animSpeed'), animSpeedVal: qs('#animSpeedVal'), animSpeedField: qs('#animSpeedField'),
+  fontFile: qs('#fontFile'), fontDrop: qs('#fontDrop'), fontSt: qs('#fontSt'),
+  importPreset: qs('#importPreset'), exportPreset: qs('#exportPreset'),
+  presetFile: qs('#presetFile'), presetSt: qs('#presetSt'),
 };
 
 function setStatus(type, msg){
-  el.st.className='status ' + (type==='good'?'good':'bad');
+  el.st.className='status ' + (type==='good'?'good':type==='warn'?'warn':'bad');
   el.st.textContent=msg;
   el.st.style.display='block';
 }
@@ -510,7 +549,7 @@ function buildPresets(){
   const frag=document.createDocumentFragment();
   for(const [k,p] of Object.entries(PRESETS)){
     const d=document.createElement('div');
-    d.className='preset'+(k==='classic'?' active':'');
+    d.className='preset'+(k==='clean'?' active':'');
     d.dataset.preset=k;
 
     const wordStyle = `font-family:'${p.font}',sans-serif;font-size:18px;font-weight:${p.font==='Playfair Display'?'400':'900'};`;
@@ -600,7 +639,7 @@ document.head.appendChild(glink);
 document.fonts.ready.then(()=> drawAt(S.time));
 
 buildPresets();
-applyPreset('classic');
+applyPreset('clean');
 // Sync animSpeed field visibility after initial preset
 el.animSpeedField.style.display = (el.animMode.value === 'none') ? 'none' : 'block';
 
@@ -622,7 +661,17 @@ function handleSrtFile(file){
       S.duration = entries[entries.length-1].end;
       S.filename = file.name.replace(/\\.srt$/i,'');
       el.tcTot.textContent = fmtTC(S.duration);
-      setStatus('good',`Loaded ${entries.length} cues · ${S.words.length} words · ${fmtTC(S.duration)}`);
+      // Warn if 4+ words per cue — likely not exported per-word from Premiere
+      const longCues = entries.filter(e => e.text.trim().split(/\s+/).length >= 4);
+      if(longCues.length > 0){
+        const pct = Math.round((longCues.length / entries.length) * 100);
+        setStatus('warn',
+          '⚠︎ ' + longCues.length + ' of ' + entries.length + ' cues have 4+ words (' + pct + '%) — '
+          + 'timing may be uneven. Re-export from Premiere with Max length: 7 chars for best results.'
+        );
+      } else {
+        setStatus('good', '✓ Loaded ' + entries.length + ' cues · ' + S.words.length + ' words · ' + fmtTC(S.duration));
+      }
       el.render.disabled = false;
       regroup();
       drawAt(0);
@@ -720,6 +769,163 @@ el.animSpeed.addEventListener('input',()=>{
   const v = (+el.animSpeed.value/1000).toFixed(2);
   el.animSpeedVal.textContent = v;
   drawAt(S.time);
+});
+
+/* =========================
+   Custom Font Upload
+   ========================= */
+const customFonts = new Map();
+
+function setFontStatus(type, msg){
+  el.fontSt.className = 'status ' + (type==='good' ? 'good' : 'bad');
+  el.fontSt.textContent = msg;
+  el.fontSt.style.display = 'block';
+}
+
+// Shared helper: register a font from ArrayBuffer, add to dropdown if new
+async function registerCustomFont(fontName, buf, ext){
+  const ff = new FontFace(fontName, buf);
+  await ff.load();
+  document.fonts.add(ff);
+  if(!customFonts.has(fontName)){
+    customFonts.set(fontName, { buf, ext });
+    let group = el.fontSelect.querySelector('optgroup[label="Custom Fonts"]');
+    if(!group){
+      group = document.createElement('optgroup');
+      group.label = 'Custom Fonts';
+      el.fontSelect.insertBefore(group, el.fontSelect.firstChild);
+    }
+    const opt = document.createElement('option');
+    opt.value = fontName;
+    opt.textContent = '\u2605 ' + fontName;
+    group.appendChild(opt);
+  }
+}
+
+async function handleFontFile(file){
+  if(!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(!['ttf','otf','woff','woff2'].includes(ext)){
+    setFontStatus('bad', 'Unsupported format \u2014 use .ttf, .otf, .woff, or .woff2');
+    return;
+  }
+  const fontName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
+  try {
+    const buf = await file.arrayBuffer();
+    await registerCustomFont(fontName, buf, ext);
+    el.fontSelect.value = fontName;
+    setFontStatus('good', '\u2713 "' + fontName + '" loaded \u2014 selected!');
+    drawAt(S.time);
+  } catch(e){
+    console.error(e);
+    setFontStatus('bad', 'Failed to load font: ' + e.message);
+  }
+}
+
+el.fontDrop.addEventListener('click', ()=> el.fontFile.click());
+el.fontFile.addEventListener('change', (e)=>{
+  handleFontFile(e.target.files && e.target.files[0]);
+  el.fontFile.value = '';
+});
+['dragenter','dragover'].forEach(evt=> el.fontDrop.addEventListener(evt,(e)=>{ e.preventDefault(); e.stopPropagation(); el.fontDrop.classList.add('drag'); }));
+['dragleave','drop'].forEach(evt=> el.fontDrop.addEventListener(evt,(e)=>{ e.preventDefault(); e.stopPropagation(); el.fontDrop.classList.remove('drag'); }));
+el.fontDrop.addEventListener('drop',(e)=>{ handleFontFile(e.dataTransfer.files && e.dataTransfer.files[0]); });
+
+/* =========================
+   Preset Export / Import
+   ========================= */
+function setPresetStatus(type, msg){
+  el.presetSt.className = 'status ' + (type==='good'?'good':type==='warn'?'warn':'bad');
+  el.presetSt.textContent = msg;
+  el.presetSt.style.display = 'block';
+  setTimeout(()=>{ el.presetSt.style.display='none'; }, 4000);
+}
+
+function captureCurrentSettings(){
+  return {
+    _wordpunch: true,
+    name: 'Custom',
+    mode: el.mode.value,
+    animMode: el.animMode.value,
+    font: el.fontSelect.value,
+    size: +el.size.value,
+    base: el.base.value,
+    hi: el.hi.value,
+    stroke: getToggle(el.tStroke),
+    strokeColor: el.strokeColor.value,
+    strokeW: +el.strokeW.value,
+    shadow: getToggle(el.tShadow),
+    shadowColor: el.shadowColor.value,
+    shadowBlur: +el.shadowBlur.value,
+    bg: getToggle(el.tBg),
+    bgColor: el.bgColor.value,
+    bgOp: +el.bgOpacity.value,
+    caps: getToggle(el.tCaps),
+    vpos: el.vpos.value,
+    wrapEnabled: getToggle(el.tWrap),
+    wrapWidth: +el.wrapWidth.value,
+  };
+}
+
+// Async — bundles custom font bytes into preset JSON if a custom font is active
+async function captureCurrentSettingsWithFont(){
+  const data = captureCurrentSettings();
+  const fontName = el.fontSelect.value;
+  if(customFonts.has(fontName)){
+    const { buf, ext } = customFonts.get(fontName);
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for(let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    data.customFont = { name: fontName, ext, data: btoa(binary) };
+  }
+  return data;
+}
+
+function applySettingsObject(p){
+  PRESETS['__imported__'] = p;
+  applyPreset('__imported__');
+  delete PRESETS['__imported__'];
+  qsa('.preset').forEach(x=>x.classList.remove('active'));
+}
+
+el.exportPreset.addEventListener('click', async ()=>{
+  const name = prompt('Name this preset:', 'My Preset');
+  if(name === null) return;
+  const data = await captureCurrentSettingsWithFont();
+  data.name = name.trim() || 'My Preset';
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = data.name.replace(/[^a-z0-9]/gi,'_').toLowerCase() + '_preset.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+el.importPreset.addEventListener('click', ()=> el.presetFile.click());
+el.presetFile.addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  el.presetFile.value = '';
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = async ()=>{
+    try {
+      const p = JSON.parse(r.result);
+      if(!p._wordpunch) throw new Error('Not a WordPunch preset file');
+      if(p.customFont){
+        const binary = atob(p.customFont.data);
+        const bytes = new Uint8Array(binary.length);
+        for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        await registerCustomFont(p.customFont.name, bytes.buffer, p.customFont.ext);
+        p.font = p.customFont.name;
+      }
+      applySettingsObject(p);
+      const fontNote = p.customFont ? ' (font bundled \u2705)' : '';
+      setPresetStatus('good', '\u2713 "' + (p.name||'Preset') + '" applied' + fontNote);
+    } catch(err) {
+      setPresetStatus('bad', 'Invalid preset: ' + err.message);
+    }
+  };
+  r.readAsText(file);
 });
 
 /* =========================
@@ -882,7 +1088,7 @@ function drawAt(t){
     const animDur = spd * 0.8;
     const p = animDur > 0 ? Math.min(1, wordDone / animDur) : 1;
     const easeOut  = 1 - Math.pow(1-p, 3);
-    const easeBack = p < 0.6 ? p/0.6 : 1 - (p-0.6)/0.4*0.15;
+    const easeBack = p < 0.5 ? p/0.5 * 1.15 : 1 + 0.15*(1-(p-0.5)/0.5);
 
     if(animMode==='typewriter') return {alpha:1, sx:1, sy:1, oy:0, skip:false};
     if(animMode==='slam'){
@@ -983,7 +1189,17 @@ function drawAt(t){
     const totalBH = mainH + ghostOffset + boxPadY * 0.9;
 
     const maxTW   = Math.max(...lines3.map(l=>measureText(l.map(w=>w.word).join(' '))));
-    const totalBW = Math.min(cv.width*0.92, maxTW + boxPadX*2);
+    // Measure ghost text at ghost font size so box is always wide enough
+    let ghostTW = 0;
+    if(nextG){
+      ctx.save();
+      ctx.font = `900 ${ghostSz}px '${fontName}', sans-serif`;
+      const _gt = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
+      ghostTW = ctx.measureText(_gt).width;
+      ctx.restore();
+      ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
+    }
+    const totalBW = Math.min(cv.width*0.92, Math.max(maxTW, ghostTW) + boxPadX*2);
     const bx = (cv.width-totalBW)/2;
     const by = yFromPos() - totalBH/2;
 
@@ -1001,11 +1217,14 @@ function drawAt(t){
       }
     }
 
-    // Draw ghost — next group's text, faded, sized to fit
+    // Draw ghost — next group's text, faded, clipped to box so it never spills
     if(nextG){
       const ghostTxt = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
-      const ghostY   = by + mainH + ghostOffset;  // exactly what we sized the box for
+      const ghostY   = by + mainH + ghostOffset;
       ctx.save();
+      ctx.beginPath();
+      ctx.rect(bx, by, totalBW, totalBH);
+      ctx.clip();
       ctx.globalAlpha = 0.25;
       ctx.font = `900 ${ghostSz}px '${fontName}', sans-serif`;
       ctx.textAlign = 'left';
