@@ -970,6 +970,32 @@ el.presetFile.addEventListener('change', (e)=>{
 });
 
 /* =========================
+   Auto-download preset on export
+   ========================= */
+function autoDownloadPreset(exportType){
+  const data = captureCurrentSettings();
+  data.name = (S.filename || 'wordpunch') + ' — export settings';
+  data._exportedAs = exportType; // 'mp4' or 'png'
+  data._exportedAt = new Date().toISOString();
+  data._sourceFile = S.filename || 'unknown';
+  if(exportType === 'mp4'){
+    data._renderBg = el.renderBg.value;
+  }
+  // Flag custom font usage (font bytes not bundled — use Save Preset for that)
+  const fontName = el.fontSelect.value;
+  if(customFonts.has(fontName)){
+    data._customFontUsed = fontName;
+    data._note = 'Custom font was used but not bundled in this auto-save. Use Save Preset to bundle the font file.';
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (S.filename || 'wordpunch') + '_settings.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* =========================
    Drawing functions
    ========================= */
 
@@ -1594,14 +1620,18 @@ async function renderVideo(){
   el.dlA.href = URL.createObjectURL(blob);
   el.dlA.download = `${S.filename||'wordpunch'}_overlay.${ext}`;
   const bgv = el.renderBg.value;
-  el.dlHint.innerHTML = bgv==='green'
+  el.dlHint.innerHTML = (bgv==='green'
     ? 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green'
     : bgv==='blue'
     ? 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the blue'
-    : 'In Premiere: place above footage → Opacity → Blend Mode → <b>Screen</b>';
+    : 'In Premiere: place above footage → Opacity → Blend Mode → <b>Screen</b>')
+    + '<br><span style="opacity:.7">Settings preset also saved as <b>_settings.json</b></span>';
   el.dlTitle.textContent = 'Video ready!';
   el.dl.classList.add('show');
   el.ov.classList.remove('show');
+
+  // Auto-download settings preset alongside the render
+  autoDownloadPreset('mp4');
 }
 
 
@@ -1667,8 +1697,11 @@ async function renderPngZip(){
     el.dlTitle.textContent = 'PNG sequence ready!';
     el.dlA.href     = URL.createObjectURL(zipBlob);
     el.dlA.download = `${S.filename||'wordpunch'}_alpha.zip`;
-    el.dlHint.innerHTML = 'In Premiere: File → Import → select <b>frame_000000.png</b> → check <b>Image Sequence</b>. True alpha, no keying needed.';
+    el.dlHint.innerHTML = 'In Premiere: File → Import → select <b>frame_000000.png</b> → check <b>Image Sequence</b>. True alpha, no keying needed.<br><span style="opacity:.7">Settings preset also saved as <b>_settings.json</b></span>';
     el.dl.classList.add('show');
+
+    // Auto-download settings preset alongside the render
+    autoDownloadPreset('png');
 
   } catch(e){
     console.error(e);
