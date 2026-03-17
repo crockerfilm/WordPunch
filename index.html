@@ -561,10 +561,11 @@ function applyPreset(key){
   if(p.ar !== undefined && typeof setAR === 'function'){
     setAR(p.ar);
     qsa('.ar-btn').forEach(x=>x.classList.toggle('active', x.dataset.ar===p.ar));
-  regroup();
-  drawAt(S.time);
   }
   if(p.exportFmt !== undefined && typeof setFormat === 'function'){ setFormat(p.exportFmt); }
+
+  regroup();
+  drawAt(S.time);
 }
 
 /* Build preset cards */
@@ -799,13 +800,65 @@ S.exportFmt = 'mp4';
 
 el.animMode.addEventListener('change',()=>{
   el.animSpeedField.style.display = (el.animMode.value === 'none') ? 'none' : 'block';
-  drawAt(S.time);
+  previewAnim();
 });
 el.animSpeed.addEventListener('input',()=>{
   const v = (+el.animSpeed.value/1000).toFixed(2);
   el.animSpeedVal.textContent = v;
-  drawAt(S.time);
+  previewAnim();
 });
+
+/* When an animation setting changes, play a quick preview from the
+   start of the current cue so you can actually see the entry anim.
+   Restores the original playhead position when done. */
+let _previewRaf = 0;
+let _previewRestore = null;
+function previewAnim(){
+  if(!S.groups.length){ drawAt(S.time); return; }
+  // If already playing normally, just let it continue
+  if(S.playing){ drawAt(S.time); return; }
+
+  const g = getActiveGroup(S.time) || findNearestGroup(S.time);
+  if(!g){ drawAt(S.time); return; }
+
+  // Cancel any in-progress preview
+  if(_previewRaf){ cancelAnimationFrame(_previewRaf); _previewRaf = 0; }
+
+  const savedTime = _previewRestore !== null ? _previewRestore : S.time;
+  _previewRestore = savedTime;
+  const startT = g.start;
+  const endT   = g.end;
+  let first = 0;
+
+  function step(ts){
+    if(S.playing){ _previewRestore = null; _previewRaf = 0; return; }
+    if(!first) first = ts;
+    const elapsed = (ts - first) / 1000;
+    const t = startT + elapsed;
+    if(t >= endT){
+      // Preview done, snap back to original position
+      drawAt(savedTime);
+      el.scrub.value = S.duration ? Math.floor((savedTime/S.duration)*1000) : 0;
+      _previewRestore = null;
+      _previewRaf = 0;
+      return;
+    }
+    drawAt(t);
+    el.scrub.value = S.duration ? Math.floor((t/S.duration)*1000) : 0;
+    _previewRaf = requestAnimationFrame(step);
+  }
+
+  drawAt(startT);
+  _previewRaf = requestAnimationFrame(step);
+}
+function findNearestGroup(t){
+  let best=null, dist=Infinity;
+  for(const g of S.groups){
+    const d = Math.min(Math.abs(t-g.start), Math.abs(t-g.end));
+    if(d<dist){ dist=d; best=g; }
+  }
+  return best;
+}
 
 /* =========================
    Custom Font Upload
@@ -1630,6 +1683,9 @@ async function renderVideo(){
   el.dl.classList.add('show');
   el.ov.classList.remove('show');
 
+  // Auto-download the rendered video
+  el.dlA.click();
+
   // Auto-download settings preset alongside the render
   autoDownloadPreset('mp4');
 }
@@ -1699,6 +1755,9 @@ async function renderPngZip(){
     el.dlA.download = `${S.filename||'wordpunch'}_alpha.zip`;
     el.dlHint.innerHTML = 'In Premiere: File → Import → select <b>frame_000000.png</b> → check <b>Image Sequence</b>. True alpha, no keying needed.<br><span style="opacity:.7">Settings preset also saved as <b>_settings.json</b></span>';
     el.dl.classList.add('show');
+
+    // Auto-download the PNG ZIP
+    el.dlA.click();
 
     // Auto-download settings preset alongside the render
     autoDownloadPreset('png');
