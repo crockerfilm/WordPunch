@@ -596,7 +596,15 @@ function applyPreset(key){
   }
   if(p.exportFmt !== undefined && typeof setFormat === 'function'){ setFormat(p.exportFmt); }
 
-  regroup();
+  // If manually edited, preserve grouping — only update caps display
+  if(S.manualEdit && S.words.length){
+    const caps = getToggle(el.tCaps);
+    const lines = el.captionEditor.value.split('\n');
+    el.captionEditor.value = lines.map(l => caps ? l.toUpperCase() : l.toLowerCase()).join('\n');
+    applyEditorToGroups();
+  } else {
+    regroup();
+  }
   drawAt(S.time);
 }
 
@@ -1026,6 +1034,17 @@ function applySettingsObject(p){
   applyPreset('__imported__');
   delete PRESETS['__imported__'];
   qsa('.preset').forEach(x=>x.classList.remove('active'));
+
+  // Restore manual caption grouping if present and word count matches
+  if(p._captionGroups && Array.isArray(p._captionGroups) && S.words.length){
+    const editorWords = p._captionGroups.flatMap(l => l.trim().split(/\s+/).filter(Boolean));
+    if(editorWords.length === S.words.length){
+      S.manualEdit = true;
+      setEditorBadge(true);
+      el.captionEditor.value = p._captionGroups.join('\n');
+      applyEditorToGroups();
+    }
+  }
 }
 
 el.exportPreset.addEventListener('click', async ()=>{
@@ -1079,6 +1098,10 @@ function autoDownloadPreset(exportType){
   data._sourceFile = S.filename || 'unknown';
   if(exportType === 'mp4'){
     data._renderBg = el.renderBg.value;
+  }
+  // Save caption grouping if manually edited
+  if(S.manualEdit && el.captionEditor.value.trim()){
+    data._captionGroups = el.captionEditor.value.split('\n').filter(l => l.trim());
   }
   // Flag custom font usage (font bytes not bundled — use Save Preset for that)
   const fontName = el.fontSelect.value;
@@ -1941,7 +1964,7 @@ document.addEventListener('keydown',(e)=>{
     else cancelAnimationFrame(S.raf);
   }
   // Left/right arrow scrub
-  if((e.code==='ArrowLeft'||e.code==='ArrowRight') && e.target.tagName!=='INPUT'){
+  if((e.code==='ArrowLeft'||e.code==='ArrowRight') && e.target.tagName!=='INPUT' && e.target.tagName!=='TEXTAREA'){
     e.preventDefault();
     const delta = e.shiftKey ? 5 : 1;
     const newT = S.time + (e.code==='ArrowRight' ? delta : -delta);
