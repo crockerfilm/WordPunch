@@ -95,6 +95,20 @@
   .srt-label{color:var(--muted)}
   .srt-val{font-family:ui-monospace,monospace;color:var(--accent);font-weight:700;font-size:11px;background:rgba(245,197,24,.1);border-radius:4px;padding:1px 6px}
   .srt-inst-sub{font-size:11px;color:var(--muted);line-height:1.4}
+  .editor-wrap{position:relative}
+  .caption-editor{width:100%;min-height:120px;max-height:260px;padding:10px;border-radius:8px;border:1px solid var(--border);background:#0f0f15;color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.7;resize:vertical;outline:none;tab-size:2}
+  .caption-editor:focus{border-color:rgba(245,197,24,.65)}
+  .caption-editor::placeholder{color:rgba(162,162,179,.4)}
+  .editor-toolbar{display:flex;gap:6px;margin-bottom:8px}
+  .editor-btn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);font-size:10px;font-weight:800;cursor:pointer;transition:.15s;letter-spacing:.3px}
+  .editor-btn:hover{border-color:rgba(245,197,24,.5);color:var(--text)}
+  .editor-btn-warn{border-color:rgba(224,88,88,.3);color:var(--bad)}
+  .editor-btn-warn:hover{border-color:var(--bad);background:rgba(224,88,88,.08)}
+  .editor-stats{font-size:10px;color:var(--muted);margin-top:6px;font-family:ui-monospace,monospace}
+  .editor-stats b{color:var(--accent);font-weight:700}
+  .editor-badge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.5px;padding:2px 6px;border-radius:4px;margin-left:auto}
+  .badge-manual{background:rgba(245,197,24,.12);color:var(--accent);border:1px solid rgba(245,197,24,.25)}
+  .badge-auto{background:rgba(162,162,179,.1);color:var(--muted);border:1px solid rgba(162,162,179,.2)}
 </style>
 </head>
 <body>
@@ -126,8 +140,23 @@
       </div>
     </div>
 
+    <div class="card" id="editorCard" style="display:none">
+      <div class="card-h"><div class="step">2</div> Edit Captions <span class="editor-badge badge-auto" id="editorBadge">AUTO</span></div>
+      <div class="card-b">
+        <div class="hint" style="margin-bottom:8px">Each line = one caption group. Hit <strong>Enter</strong> to split a word onto the next caption. Timing stays synced automatically.</div>
+        <div class="editor-toolbar">
+          <button class="editor-btn" id="editorReflow">↻ Re-flow from WPC</button>
+          <button class="editor-btn editor-btn-warn" id="editorReset">✕ Reset to original</button>
+        </div>
+        <div class="editor-wrap">
+          <textarea class="caption-editor" id="captionEditor" placeholder="Load an SRT to see captions here..." spellcheck="false"></textarea>
+        </div>
+        <div class="editor-stats" id="editorStats"></div>
+      </div>
+    </div>
+
     <div class="card">
-      <div class="card-h"><div class="step">2</div> Style preset</div>
+      <div class="card-h"><div class="step">3</div> Style preset</div>
       <div class="card-b">
         <div class="preset-grid" id="presets"></div>
         <div class="preset-io">
@@ -140,7 +169,7 @@
     </div>
 
     <div class="card">
-      <div class="card-h"><div class="step">3</div> Customize</div>
+      <div class="card-h"><div class="step">4</div> Customize</div>
       <div class="card-b">
         <div class="field">
           <label>Caption Style <span style="color:var(--muted);font-weight:400;font-size:10px">— how the active word looks</span></label>
@@ -299,7 +328,7 @@
     </div>
 
     <div class="card">
-      <div class="card-h"><div class="step">4</div> Export</div>
+      <div class="card-h"><div class="step">5</div> Export</div>
       <div class="card-b">
         <div class="field">
           <label>Format</label>
@@ -500,6 +529,9 @@ const el = {
   fontFile: qs('#fontFile'), fontDrop: qs('#fontDrop'), fontSt: qs('#fontSt'),
   importPreset: qs('#importPreset'), exportPreset: qs('#exportPreset'),
   presetFile: qs('#presetFile'), presetSt: qs('#presetSt'),
+  captionEditor: qs('#captionEditor'), editorCard: qs('#editorCard'),
+  editorBadge: qs('#editorBadge'), editorStats: qs('#editorStats'),
+  editorReflow: qs('#editorReflow'), editorReset: qs('#editorReset'),
 };
 
 function setStatus(type, msg){
@@ -697,6 +729,8 @@ function handleSrtFile(file){
         setStatus('good', '✓ Loaded ' + entries.length + ' cues · ' + S.words.length + ' words · ' + fmtTC(S.duration));
       }
       el.render.disabled = false;
+      S.manualEdit = false;
+      el.editorCard.style.display = 'block';
       regroup();
       drawAt(0);
       el.now.textContent = 'Ready to preview';
@@ -756,8 +790,20 @@ el.tBg.addEventListener('click',()=>{
 el.bgColor.addEventListener('input',()=>drawAt(S.time));
 el.bgOpacity.addEventListener('input',()=>{el.bgVal.textContent=el.bgOpacity.value; drawAt(S.time);});
 
-el.wpc.addEventListener('change',()=>{regroup(); drawAt(S.time);});
-el.tCaps.addEventListener('click',()=>{toggle(el.tCaps, !getToggle(el.tCaps)); regroup(); drawAt(S.time);});
+el.wpc.addEventListener('change',()=>{S.manualEdit = false; regroup(); drawAt(S.time);});
+el.tCaps.addEventListener('click',()=>{
+  toggle(el.tCaps, !getToggle(el.tCaps));
+  if(S.manualEdit && S.words.length){
+    // Update editor text case but preserve line breaks
+    const caps = getToggle(el.tCaps);
+    const lines = el.captionEditor.value.split('\n');
+    el.captionEditor.value = lines.map(l => caps ? l.toUpperCase() : l.toLowerCase()).join('\n');
+    applyEditorToGroups();
+  } else {
+    regroup();
+  }
+  drawAt(S.time);
+});
 el.tWrap.addEventListener('click',()=>{
   toggle(el.tWrap, !getToggle(el.tWrap));
   el.wrapOpts.style.display = getToggle(el.tWrap) ? 'block' : 'none';
@@ -1479,7 +1525,7 @@ function drawAt(t){
 
 /* regroup based on words per caption */
 function regroup(){
-  if(!S.words.length){ S.groups=[]; return; }
+  if(!S.words.length){ S.groups=[]; updateEditorStats(); return; }
   const sz = parseInt(el.wpc.value,10) || 2;
   const grouped = groupWords(S.words, sz);
   // rebuild text with caps toggle
@@ -1489,7 +1535,109 @@ function regroup(){
     text: caps ? g.text.toUpperCase() : g.text,
     wt: caps ? g.wt.map(w=>({...w, word:w.word.toUpperCase()})) : g.wt
   }));
+  // Auto-populate editor (non-manual mode)
+  if(!S.manualEdit) populateEditorFromGroups();
+  updateEditorStats();
 }
+
+/* =========================
+   Caption Text Editor
+   ========================= */
+S.manualEdit = false;
+
+function populateEditorFromGroups(){
+  if(!S.groups.length){ el.captionEditor.value = ''; return; }
+  const caps = getToggle(el.tCaps);
+  el.captionEditor.value = S.groups.map(g =>
+    g.wt.map(w => caps ? w.word.toUpperCase() : w.word).join(' ')
+  ).join('\n');
+  setEditorBadge(false);
+}
+
+function setEditorBadge(manual){
+  el.editorBadge.textContent = manual ? 'MANUAL' : 'AUTO';
+  el.editorBadge.className = 'editor-badge ' + (manual ? 'badge-manual' : 'badge-auto');
+}
+
+function updateEditorStats(){
+  if(!S.words.length){ el.editorStats.textContent = ''; return; }
+  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
+  el.editorStats.innerHTML = '<b>' + lines.length + '</b> groups · <b>' + S.words.length + '</b> words total';
+}
+
+function applyEditorToGroups(){
+  if(!S.words.length) return;
+  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
+  if(!lines.length) return;
+
+  // Count total words in editor vs S.words
+  const editorWords = lines.flatMap(l => l.trim().split(/\s+/).filter(Boolean));
+  if(editorWords.length !== S.words.length){
+    // Word count mismatch, show warning and don't apply
+    el.editorStats.innerHTML = '<span style="color:var(--bad)">⚠ Word count mismatch: editor has <b>' + editorWords.length + '</b>, SRT has <b>' + S.words.length + '</b>. Fix or re-flow.</span>';
+    return;
+  }
+
+  const caps = getToggle(el.tCaps);
+  const newGroups = [];
+  let wordIdx = 0;
+
+  for(const line of lines){
+    const lineWords = line.trim().split(/\s+/).filter(Boolean);
+    if(!lineWords.length) continue;
+    const wt = [];
+    for(let i = 0; i < lineWords.length; i++){
+      if(wordIdx >= S.words.length) break;
+      const orig = S.words[wordIdx];
+      // Use the editor text for display, original timing
+      const displayWord = lineWords[i];
+      wt.push({
+        word: caps ? displayWord.toUpperCase() : displayWord,
+        start: orig.start,
+        end: orig.end
+      });
+      wordIdx++;
+    }
+    if(wt.length){
+      newGroups.push({
+        wt,
+        start: wt[0].start,
+        end: wt[wt.length - 1].end,
+        text: wt.map(w => w.word).join(' ')
+      });
+    }
+  }
+
+  if(newGroups.length){
+    S.groups = newGroups;
+  }
+  updateEditorStats();
+  drawAt(S.time);
+}
+
+// Editor input: mark as manual and apply
+el.captionEditor.addEventListener('input', ()=>{
+  S.manualEdit = true;
+  setEditorBadge(true);
+  applyEditorToGroups();
+});
+
+// Re-flow from WPC: reset to auto grouping
+el.editorReflow.addEventListener('click', ()=>{
+  S.manualEdit = false;
+  regroup();
+  drawAt(S.time);
+});
+
+// Reset to original (1 word per line)
+el.editorReset.addEventListener('click', ()=>{
+  if(!S.words.length) return;
+  S.manualEdit = true;
+  setEditorBadge(true);
+  const caps = getToggle(el.tCaps);
+  el.captionEditor.value = S.words.map(w => caps ? w.word.toUpperCase() : w.word).join('\n');
+  applyEditorToGroups();
+});
 
 /* playback */
 function tick(ts){
