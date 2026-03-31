@@ -337,6 +337,20 @@
             <button class="ar" id="fmtPng">PNG Sequence</button>
           </div>
         </div>
+        <div class="field">
+          <label>Frame Rate</label>
+          <select id="fpsSelect">
+            <option value="23.976">23.976 fps</option>
+            <option value="24">24 fps</option>
+            <option value="25">25 fps</option>
+            <option value="29.97">29.97 fps</option>
+            <option value="30" selected>30 fps</option>
+            <option value="48">48 fps</option>
+            <option value="50">50 fps</option>
+            <option value="59.94">59.94 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+        </div>
         <div id="bgSection">
           <div class="field">
             <label>Render Background</label>
@@ -521,7 +535,7 @@ const el = {
   now: qs('#now'),
   ov: qs('#ov'), barFill: qs('#barFill'), ovTxt: qs('#ovTxt'),
   dl: qs('#dl'), dlA: qs('#dlA'), dlHint: qs('#dlHint'),
-  renderBg: qs('#renderBg'), renderHint: qs('#renderHint'),
+  renderBg: qs('#renderBg'), renderHint: qs('#renderHint'), fpsSelect: qs('#fpsSelect'),
   fmtMp4: qs('#fmtMp4'), fmtPng: qs('#fmtPng'),
   bgSection: qs('#bgSection'), pngSection: qs('#pngSection'),
   dlTitle: qs('#dlTitle'),
@@ -1706,7 +1720,7 @@ async function renderVideo(){
   S.playing = false;
   S.rendering = true;
 
-  const fps = 30;
+  const fps = parseFloat(el.fpsSelect.value) || 30;
   const duration = S.duration;
   const totalFrames = Math.ceil(duration * fps);
   const [w,h] = [cv.width, cv.height];
@@ -1881,7 +1895,7 @@ async function renderPngZip(){
     // Load fflate for in-browser ZIP
     const { zipSync, strToU8 } = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm');
 
-    const fps = 30;
+    const fps = parseFloat(el.fpsSelect.value) || 30;
     const duration = S.duration;
     const totalFrames = Math.ceil(duration * fps);
     const [w,h] = [cv.width, cv.height];
