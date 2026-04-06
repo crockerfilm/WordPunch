@@ -193,6 +193,7 @@
             <option value="fadeup">Fade Up — each word rises in</option>
             <option value="scale">Scale Pop — each word pops in</option>
             <option value="bounce">Bounce — each word drops in</option>
+            <option value="fill">Fill In — words light up progressively</option>
           </select>
         </div>
 
@@ -599,7 +600,7 @@ function applyPreset(key){
   if(p.mode !== undefined){ el.mode.value = p.mode; }
 
   // Show/hide anim speed based on animMode
-  el.animSpeedField.style.display = (el.animMode.value === 'none') ? 'none' : 'block';
+  el.animSpeedField.style.display = (el.animMode.value === 'none' || el.animMode.value === 'fill') ? 'none' : 'block';
 
 
   if(p.animSpeed !== undefined){ el.animSpeed.value = p.animSpeed; el.animSpeedVal.textContent = (p.animSpeed/1000).toFixed(2); }
@@ -719,7 +720,7 @@ document.fonts.ready.then(()=> drawAt(S.time));
 buildPresets();
 applyPreset('clean');
 // Sync animSpeed field visibility after initial preset
-el.animSpeedField.style.display = (el.animMode.value === 'none') ? 'none' : 'block';
+el.animSpeedField.style.display = (el.animMode.value === 'none' || el.animMode.value === 'fill') ? 'none' : 'block';
 
 /* File drop/browse */
 function handleSrtFile(file){
@@ -867,7 +868,7 @@ el.fmtPng.addEventListener('click', ()=> setFormat('png'));
 S.exportFmt = 'mp4';
 
 el.animMode.addEventListener('change',()=>{
-  el.animSpeedField.style.display = (el.animMode.value === 'none') ? 'none' : 'block';
+  el.animSpeedField.style.display = (el.animMode.value === 'none' || el.animMode.value === 'fill') ? 'none' : 'block';
   previewAnim();
 });
 el.animSpeed.addEventListener('input',()=>{
@@ -1283,9 +1284,12 @@ function drawAt(t){
   // ---- word entry: compute per-word alpha / scale / offset ----
   function wordEntryTransform(wordIndex, totalWords){
     if(animMode === 'none') return {alpha:1, sx:1, sy:1, oy:0, skip:false};
+    if(animMode === 'fill') return {alpha:1, sx:1, sy:1, oy:0, skip:false}; // handled separately
     const groupDur = Math.max(0.01, g.end - g.start);
     const elapsed  = S.time - g.start;
-    const spd = animSpeedMs;
+    // Cap speed so all words can appear within 80% of group duration
+    const maxSpd = totalWords > 1 ? (groupDur * 0.8) / totalWords : animSpeedMs;
+    const spd = Math.min(animSpeedMs, maxSpd);
 
     if(animMode === 'letters') return {alpha:1, sx:1, sy:1, oy:0, skip:false}; // handled separately
 
@@ -1540,6 +1544,54 @@ function drawAt(t){
       const full2=words.map(w=>w.word).join(' ');
       const sx5 = cv.width/2 - measureText(full2)/2;
       drawWordsLetterReveal(words, sx5, y, (wi)=>colorFn(wi));
+    }
+    el.now.textContent = words[activeIdx]?.word||text; return;
+  }
+
+  // ---- fill-in entry: words appear dim, light up progressively and stay lit ----
+  if(animMode === 'fill'){
+    const layout5 = wrapOn
+      ? layoutWrappedLines(words, wrapMaxW)
+      : layoutSingleLine(words).map(({w,x})=>({w,x,y}));
+    const groupDur = Math.max(0.01, g.end - g.start);
+    const elapsed  = S.time - g.start;
+    // Each word's "spoken" time is based on its individual timing within the group
+    ctx.textAlign='left';
+    for(let i=0; i<layout5.length; i++){
+      const {w, x:wx, y:wy} = layout5[i];
+      const wi = words.indexOf(w);
+      const wordStart = w.start - g.start; // time relative to group start
+      const wordEnd   = w.end   - g.start;
+      const wordMid   = wordStart; // light up when the word begins
+
+      // How far into this word's activation are we?
+      const fadeInDur = 0.12; // gentle fade duration in seconds
+      let fillAlpha;
+      if(elapsed >= wordMid + fadeInDur){
+        // Fully lit — word has been spoken
+        fillAlpha = 1.0;
+      } else if(elapsed >= wordMid){
+        // Fading in
+        const p = (elapsed - wordMid) / fadeInDur;
+        fillAlpha = 0.25 + 0.75 * (p * p * (3 - 2 * p)); // smoothstep
+      } else {
+        // Not yet spoken — dim
+        fillAlpha = 0.25;
+      }
+
+      // Color: use highlight color for spoken words, base for unspoken
+      const isSpoken = elapsed >= wordMid;
+      const fillColor = isSpoken ? hi : base;
+      const dimAlpha = mode === 'dim' ? (wi === activeIdx ? 1.0 : (isSpoken ? 0.85 : 0.25)) : fillAlpha;
+
+      if(mode === 'solid'){
+        drawWord(w.word, wx, wy, hi, fillAlpha);
+      } else if(mode === 'dim'){
+        drawWord(w.word, wx, wy, base, dimAlpha);
+      } else {
+        // karaoke-style: unspoken = base dim, spoken = hi bright
+        drawWord(w.word, wx, wy, fillColor, fillAlpha);
+      }
     }
     el.now.textContent = words[activeIdx]?.word||text; return;
   }
