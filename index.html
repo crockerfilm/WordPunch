@@ -143,7 +143,7 @@
     <div class="card" id="editorCard" style="display:none">
       <div class="card-h"><div class="step">2</div> Edit Captions <span class="editor-badge badge-auto" id="editorBadge">AUTO</span></div>
       <div class="card-b">
-        <div class="hint" style="margin-bottom:8px">Each line = one caption group. Hit <strong>Enter</strong> to split a word onto the next caption. Timing stays synced automatically.</div>
+        <div class="hint" style="margin-bottom:8px">Each line = one caption group. Hit <strong>Enter</strong> to split a word onto the next caption. Timing stays synced automatically.<br><span style="margin-top:5px;display:inline-block">Use <strong style="color:var(--accent);font-family:ui-monospace,monospace">^</strong> to mark superscript — e.g. <code style="color:var(--accent);background:rgba(245,197,24,.1);border-radius:3px;padding:0 4px">1^st^</code> or <code style="color:var(--accent);background:rgba(245,197,24,.1);border-radius:3px;padding:0 4px">®^</code></span></div>
         <div class="editor-toolbar">
           <button class="editor-btn" id="editorReflow">↻ Re-flow from WPC</button>
           <button class="editor-btn editor-btn-warn" id="editorReset">✕ Reset to original</button>
@@ -564,7 +564,7 @@ function applyPreset(key){
   S.preset = key;
   qsa('.preset').forEach(x=>x.classList.toggle('active', x.dataset.preset===key));
 
-  el.mode.value = 'karaoke';
+  el.mode.value = p.mode || 'karaoke';
   el.fontSelect.value = p.font;
   el.size.value = p.size; el.sizeVal.textContent = p.size;
 
@@ -597,7 +597,6 @@ function applyPreset(key){
   if(p.wrapWidth !== undefined){ el.wrapWidth.value = p.wrapWidth; el.wrapVal.textContent = p.wrapWidth; }
 
   if(p.animMode !== undefined){ el.animMode.value = p.animMode; }
-  if(p.mode !== undefined){ el.mode.value = p.mode; }
 
   // Show/hide anim speed based on animMode
   el.animSpeedField.style.display = (el.animMode.value === 'none' || el.animMode.value === 'fill') ? 'none' : 'block';
@@ -615,7 +614,15 @@ function applyPreset(key){
   if(S.manualEdit && S.words.length){
     const caps = getToggle(el.tCaps);
     const lines = el.captionEditor.value.split('\n');
-    el.captionEditor.value = lines.map(l => caps ? l.toUpperCase() : l.toLowerCase()).join('\n');
+    let wi = 0;
+    el.captionEditor.value = lines.map(l => {
+      const count = l.trim().split(/\s+/).filter(Boolean).length;
+      const rebuilt = [];
+      for(let j = 0; j < count && wi < S.words.length; j++, wi++){
+        rebuilt.push(caps ? S.words[wi].word.toUpperCase() : S.words[wi].word);
+      }
+      return rebuilt.join(' ');
+    }).join('\n');
     applyEditorToGroups();
   } else {
     regroup();
@@ -820,7 +827,15 @@ el.tCaps.addEventListener('click',()=>{
     // Update editor text case but preserve line breaks
     const caps = getToggle(el.tCaps);
     const lines = el.captionEditor.value.split('\n');
-    el.captionEditor.value = lines.map(l => caps ? l.toUpperCase() : l.toLowerCase()).join('\n');
+    let wi2 = 0;
+    el.captionEditor.value = lines.map(l => {
+      const count = l.trim().split(/\s+/).filter(Boolean).length;
+      const rebuilt = [];
+      for(let j = 0; j < count && wi2 < S.words.length; j++, wi2++){
+        rebuilt.push(caps ? S.words[wi2].word.toUpperCase() : S.words[wi2].word);
+      }
+      return rebuilt.join(' ');
+    }).join('\n');
     applyEditorToGroups();
   } else {
     regroup();
@@ -1140,16 +1155,76 @@ function currentFont(){
   return el.fontSelect.value || 'Impact';
 }
 
+/* =========================
+   Superscript helpers
+   Syntax: wrap chars in ^ — e.g. "1^st^" or "®^"
+   Single trailing ^x  → just x is super  (no closing ^)
+   ^text^              → text is super
+   ========================= */
+function parseSuper(word){
+  // Returns [{text, isSuper}, ...]
+  const segs = [];
+  let i = 0;
+  while(i < word.length){
+    if(word[i] === '^'){
+      // Opening ^
+      i++;
+      // Find closing ^
+      const close = word.indexOf('^', i);
+      if(close === -1){
+        // No closing ^ — treat rest as superscript
+        segs.push({text: word.slice(i), isSuper: true});
+        i = word.length;
+      } else {
+        segs.push({text: word.slice(i, close), isSuper: true});
+        i = close + 1;
+      }
+    } else {
+      // Normal text until next ^
+      const next = word.indexOf('^', i);
+      if(next === -1){
+        segs.push({text: word.slice(i), isSuper: false});
+        i = word.length;
+      } else {
+        segs.push({text: word.slice(i, next), isSuper: false});
+        i = next;
+      }
+    }
+  }
+  return segs.filter(s => s.text.length > 0);
+}
+
+function hasSuper(word){ return word.includes('^'); }
+
+/* Measure a word that may contain superscript segments */
+function measureWordWithSuper(word, fontSize, fontName){
+  const segs = parseSuper(word);
+  let total = 0;
+  const superFontSize = Math.round(fontSize * 0.6);
+  for(const seg of segs){
+    if(seg.isSuper){
+      ctx.save();
+      ctx.font = `900 ${superFontSize}px ${fontName}, sans-serif`;
+      total += ctx.measureText(seg.text).width;
+      ctx.restore();
+    } else {
+      total += ctx.measureText(seg.text).width;
+    }
+  }
+  return total;
+}
+
 /* Wrap a words array into lines given a max pixel width */
-function wrapWordsToLines(wordObjs, maxPixW){
+function wrapWordsToLines(wordObjs, maxPixW, measureFn){
+  measureFn = measureFn || ((s)=>ctx.measureText(s).width);
   const lines = [];
   let curLine = [], curW = 0;
   for(const wrd of wordObjs){
-    const ww = ctx.measureText(wrd.word + ' ').width;
+    const ww = measureFn(wrd.word) + measureFn(' ');
     if(curW + ww > maxPixW && curLine.length){
       lines.push(curLine);
       curLine = [wrd];
-      curW = ctx.measureText(wrd.word + ' ').width;
+      curW = measureFn(wrd.word) + measureFn(' ');
     } else {
       curLine.push(wrd);
       curW += ww;
@@ -1235,7 +1310,7 @@ function drawAt(t){
   const wrapOn = getToggle(el.tWrap);
   const wrapMaxW = cv.width * (+el.wrapWidth.value / 100);
 
-  const measureText = (str)=>ctx.measureText(str).width;
+  const measureText = (str)=>hasSuper(str) ? measureWordWithSuper(str, fontSize, fontName) : ctx.measureText(str).width;
   const padX = Math.round(fontSize*0.55);
   const padY = Math.round(fontSize*0.35);
   const boxRadius = Math.round(fontSize*0.35);
@@ -1259,25 +1334,87 @@ function drawAt(t){
   function drawWord(word, wx, wy, fillColor, alpha=1, sx=1, sy=1, oy=0){
     ctx.save();
     ctx.globalAlpha = alpha;
-    if(sx!==1||sy!==1||oy!==0){
-      ctx.translate(wx + measureText(word)/2, wy + oy);
-      ctx.scale(sx, sy);
-      ctx.translate(-(wx + measureText(word)/2), -(wy + oy));
+
+    if(!hasSuper(word)){
+      // Fast path — no superscript
+      if(sx!==1||sy!==1||oy!==0){
+        ctx.translate(wx + measureText(word)/2, wy + oy);
+        ctx.scale(sx, sy);
+        ctx.translate(-(wx + measureText(word)/2), -(wy + oy));
+      }
+      if(getToggle(el.tShadow)){
+        ctx.shadowColor = el.shadowColor.value;
+        ctx.shadowBlur  = +el.shadowBlur.value;
+        ctx.shadowOffsetX = Math.round(fontSize*0.05);
+        ctx.shadowOffsetY = Math.round(fontSize*0.05);
+      }
+      if(doStroke){
+        ctx.strokeStyle = el.strokeColor.value;
+        ctx.lineWidth   = +el.strokeW.value;
+        ctx.lineJoin    = 'round';
+        ctx.strokeText(word, wx, wy);
+      }
+      ctx.fillStyle = fillColor;
+      ctx.fillText(word, wx, wy);
+    } else {
+      // Superscript path — draw segment by segment
+      const segs = parseSuper(word);
+      const superFontSize = Math.round(fontSize * 0.6);
+      const superRise     = Math.round(fontSize * 0.55);
+      const totalW        = measureWordWithSuper(word, fontSize, fontName);
+
+      if(sx!==1||sy!==1||oy!==0){
+        ctx.translate(wx + totalW/2, wy + oy);
+        ctx.scale(sx, sy);
+        ctx.translate(-(wx + totalW/2), -(wy + oy));
+      }
+
+      let cx2 = wx;
+      for(const seg of segs){
+        if(seg.isSuper){
+          ctx.font = `900 ${superFontSize}px ${fontName}, sans-serif`;
+          const segW = ctx.measureText(seg.text).width;
+          const segY = wy - superRise;
+          if(getToggle(el.tShadow)){
+            ctx.shadowColor = el.shadowColor.value;
+            ctx.shadowBlur  = +el.shadowBlur.value * 0.7;
+            ctx.shadowOffsetX = Math.round(superFontSize*0.05);
+            ctx.shadowOffsetY = Math.round(superFontSize*0.05);
+          }
+          if(doStroke){
+            ctx.strokeStyle = el.strokeColor.value;
+            ctx.lineWidth   = Math.max(1, +el.strokeW.value * 0.6);
+            ctx.lineJoin    = 'round';
+            ctx.strokeText(seg.text, cx2, segY);
+          }
+          ctx.fillStyle = fillColor;
+          ctx.fillText(seg.text, cx2, segY);
+          cx2 += segW;
+          ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
+        } else {
+          const segW = ctx.measureText(seg.text).width;
+          if(getToggle(el.tShadow)){
+            ctx.shadowColor = el.shadowColor.value;
+            ctx.shadowBlur  = +el.shadowBlur.value;
+            ctx.shadowOffsetX = Math.round(fontSize*0.05);
+            ctx.shadowOffsetY = Math.round(fontSize*0.05);
+          }
+          if(doStroke){
+            ctx.strokeStyle = el.strokeColor.value;
+            ctx.lineWidth   = +el.strokeW.value;
+            ctx.lineJoin    = 'round';
+            ctx.strokeText(seg.text, cx2, wy);
+          }
+          ctx.fillStyle = fillColor;
+          ctx.fillText(seg.text, cx2, wy);
+          cx2 += segW;
+        }
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur  = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      }
     }
-    if(getToggle(el.tShadow)){
-      ctx.shadowColor = el.shadowColor.value;
-      ctx.shadowBlur  = +el.shadowBlur.value;
-      ctx.shadowOffsetX = Math.round(fontSize*0.05);
-      ctx.shadowOffsetY = Math.round(fontSize*0.05);
-    }
-    if(doStroke){
-      ctx.strokeStyle = el.strokeColor.value;
-      ctx.lineWidth   = +el.strokeW.value;
-      ctx.lineJoin    = 'round';
-      ctx.strokeText(word, wx, wy);
-    }
-    ctx.fillStyle = fillColor;
-    ctx.fillText(word, wx, wy);
     ctx.restore();
   }
 
@@ -1351,7 +1488,7 @@ function drawAt(t){
     });
   }
   function layoutWrappedLines(wordList, maxW){
-    const lines = wrapWordsToLines(wordList, maxW);
+    const lines = wrapWordsToLines(wordList, maxW, measureText);
     const lineH = fontSize * 1.28;
     const totalH = lines.length * lineH;
     const startY = yFromPos() - totalH/2 + fontSize;
@@ -1386,7 +1523,7 @@ function drawAt(t){
     const nextG  = gIdx2 < S.groups.length-1 ? S.groups[gIdx2+1] : null;
     const boxPadX = fontSize*0.7, boxPadY = fontSize*0.55;
     const maxLW = cv.width * 0.82;
-    const lines3 = wrapWordsToLines(words, maxLW);
+    const lines3 = wrapWordsToLines(words, maxLW, measureText);
     const lineH3  = fontSize * 1.3;
     const ghostSz = fontSize * 0.85;
     const hasGhost = !!nextG;
@@ -1453,7 +1590,7 @@ function drawAt(t){
   if(mode === 'twobox'){
     const boxPadX=fontSize*0.65, boxPadY=fontSize*0.50;
     const maxLW5 = cv.width*0.80;
-    const lines5 = wrapWordsToLines(words, maxLW5);
+    const lines5 = wrapWordsToLines(words, maxLW5, measureText);
     const lineH5  = fontSize*1.3;
     const totalBH5 = lines5.length*lineH5 + boxPadY*2 - lineH5*0.15;
     const maxTW5  = Math.max(...lines5.map(l=>measureText(l.map(w=>w.word).join(' '))));
@@ -1501,7 +1638,7 @@ function drawAt(t){
   // colorFn: given word index, return fill color
   const colorFn = (wi) => {
     if(mode==='solid') return hi;
-    if(mode==='dim')   return wi===activeIdx ? base : base; // alpha handled in draw
+    if(mode==='dim')   return wi===activeIdx ? hi : base; // alpha handled in draw
     return wi===activeIdx ? hi : base; // karaoke default
   };
   const alphaFn = (wi) => {
@@ -1903,11 +2040,13 @@ async function renderVideo(){
   // Restore & offer download
   S.rendering = false;
   S.time = origTime;
-  if(origPlaying) S.playing = true;
+  if(origPlaying){ S.playing = true; S.last = 0; S.raf = requestAnimationFrame(tick); }
   drawAt(S.time);
 
   S.blob = blob;
-  el.dlA.href = URL.createObjectURL(blob);
+  if(el.dlA._blobUrl) URL.revokeObjectURL(el.dlA._blobUrl);
+  el.dlA._blobUrl = URL.createObjectURL(blob);
+  el.dlA.href = el.dlA._blobUrl;
   el.dlA.download = `${S.filename||'wordpunch'}_overlay.${ext}`;
   const bgv = el.renderBg.value;
   el.dlHint.innerHTML = (bgv==='green'
@@ -1984,11 +2123,13 @@ async function renderPngZip(){
 
     S.rendering = false;
     S.time = origTime;
-    if(origPlaying) S.playing = true;
+    if(origPlaying){ S.playing = true; S.last = 0; S.raf = requestAnimationFrame(tick); }
     drawAt(S.time);
 
     el.dlTitle.textContent = 'PNG sequence ready!';
-    el.dlA.href     = URL.createObjectURL(zipBlob);
+    if(el.dlA._blobUrl) URL.revokeObjectURL(el.dlA._blobUrl);
+    el.dlA._blobUrl = URL.createObjectURL(zipBlob);
+    el.dlA.href     = el.dlA._blobUrl;
     el.dlA.download = `${S.filename||'wordpunch'}_alpha.zip`;
     el.dlHint.innerHTML = 'In Premiere: File → Import → select <b>frame_000000.png</b> → check <b>Image Sequence</b>. True alpha, no keying needed.<br><span style="opacity:.7">Settings preset also saved as <b>_settings.json</b></span>';
     el.dl.classList.add('show');
@@ -2003,7 +2144,7 @@ async function renderPngZip(){
     console.error(e);
     S.rendering = false;
     S.time = origTime;
-    if(origPlaying) S.playing = true;
+    if(origPlaying){ S.playing = true; S.last = 0; S.raf = requestAnimationFrame(tick); }
     drawAt(S.time);
     alert('PNG export failed: ' + e.message);
   }
