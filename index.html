@@ -1466,7 +1466,35 @@ function handleFile(file){
       S.time = 0;
       updateTime();
       el.stats.style.display = 'block';
-      el.stats.innerHTML = `<b>${entries.length}</b> entries · <b>${S.words.length}</b> words · <b>${S.groups.length}</b> groups · <b>${fmtTC(S.duration)}</b>`;
+
+      // Analyze SRT timing precision. We split each entry's words evenly
+      // across its duration — so an entry with 1-2 words is accurate, but
+      // an entry with 8 words spread over 4s is just guesswork. Flag this
+      // because users will export and wonder why words don't sync.
+      const wordsPerEntry = entries.map(en =>
+        en.text.split(/\s+/).filter(Boolean).length
+      );
+      const avg = wordsPerEntry.reduce((a,b)=>a+b, 0) / wordsPerEntry.length;
+      const max = Math.max(...wordsPerEntry);
+      const multiCount = wordsPerEntry.filter(n => n >= 3).length;
+      const multiPct = (multiCount / wordsPerEntry.length) * 100;
+
+      let warn = '';
+      if(avg > 4 || max >= 6){
+        // Bad: long multi-word lines — timing will visibly drift
+        warn = `<div style="color:#ff5b5b;margin-top:6px;font-weight:600">⚠ Inaccurate timing</div>` +
+               `<div style="color:var(--muted);margin-top:2px;line-height:1.4">This SRT has long multi-word lines (avg ${avg.toFixed(1)} words/entry, longest ${max}). Word timing is interpolated evenly inside each entry, so individual words may drift from where they're actually spoken.<br><br>In Premiere's Captions panel, re-export with <b>Single Line</b>, <b>Max length: 7 characters</b>, <b>Min duration: 1.2s</b>, <b>Gap: 0 frames</b> for tight word-level sync.</div>`;
+      } else if(avg > 2 || multiPct > 25){
+        // Caution
+        warn = `<div style="color:#ffc107;margin-top:6px;font-weight:600">⚠ Approximate timing</div>` +
+               `<div style="color:var(--muted);margin-top:2px;line-height:1.4">${multiCount} of ${wordsPerEntry.length} entries have 3+ words (avg ${avg.toFixed(1)}). Word timing is interpolated within each entry — may not align perfectly with the audio.<br><br>For tighter sync, re-export from Premiere's Captions panel with <b>Single Line</b>, <b>Max length: 7 characters</b>, <b>Min duration: 1.2s</b>, <b>Gap: 0 frames</b>.</div>`;
+      } else {
+        warn = `<div style="color:var(--good);margin-top:6px">✓ Word-level timing (avg ${avg.toFixed(1)} words/entry)</div>`;
+      }
+
+      el.stats.innerHTML =
+        `<b>${entries.length}</b> entries · <b>${S.words.length}</b> words · <b>${S.groups.length}</b> groups · <b>${fmtTC(S.duration)}</b>` +
+        warn;
       draw();
     } catch(err){
       console.error(err);
