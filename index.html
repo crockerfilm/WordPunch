@@ -1,2185 +1,2190 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
 <title>WordPunch — Caption Maker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Anton&family=Bebas+Neue&family=Archivo+Black&family=Montserrat:wght@700;900&family=Oswald:wght@500;700&family=Poppins:wght@700;900&family=Permanent+Marker&family=Luckiest+Guy&family=Passion+One:wght@700;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0b0b0f;--panel:#13131a;--panel2:#191922;--border:#2a2a36;
-    --text:#f2f2f5;--muted:#a2a2b3;--accent:#f5c518;--good:#3ecf6c;--bad:#e05858;
-    --radius:10px;--font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    --bg:#0e0e0e; --panel:#1a1a1a; --panel2:#222; --line:#2a2a2a;
+    --text:#eee; --muted:#888; --accent:#5d2de6; --accent-hi:#7241ff;
+    --good:#5be5a0; --bad:#ff5b5b;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--font);background:linear-gradient(180deg,#07070a, #0b0b0f 40%);color:var(--text);height:100vh;overflow:hidden}
-  .layout{display:grid;grid-template-columns:360px 1fr;height:100vh}
-  .sidebar{background:var(--panel);border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;overflow-x:hidden;height:100vh}
-  .top{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius)}
-  .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#ff8c00);display:flex;align-items:center;justify-content:center;color:#000;font-weight:900}
-  .title{font-weight:800;letter-spacing:.4px}
-  .sub{color:var(--muted);font-size:12px;margin-left:auto}
-  .card{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius)}
-  .card-h{padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--muted);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
-  .step{width:18px;height:18px;border-radius:50%;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.35);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:11px}
-  .card-b{padding:12px}
-  .hint{color:var(--muted);font-size:12px;line-height:1.35}
-  .drop{margin-top:10px;border:2px dashed rgba(245,197,24,.35);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;transition:.15s}
-  .drop:hover,.drop.drag{background:rgba(245,197,24,.06);border-color:var(--accent)}
-  .drop strong{color:var(--accent)}
-  .status{margin-top:10px;font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;display:none}
-  .status.good{display:block;background:rgba(62,207,108,.08);border-color:rgba(62,207,108,.25);color:var(--good)}
-  .status.bad{display:block;background:rgba(224,88,88,.08);border-color:rgba(224,88,88,.25);color:var(--bad)}
-  .status.warn{display:block;background:rgba(245,197,24,.07);border-color:rgba(245,197,24,.28);color:var(--accent)}
-  .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .preset{border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:.15s;background:rgba(255,255,255,.02)}
-  .preset:hover{border-color:rgba(245,197,24,.55)}
-  .preset.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(245,197,24,.25) inset}
-  .pname{font-size:11px;font-weight:900;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
-  .pprev{margin-top:6px;font-weight:900;line-height:1.2;min-height:28px;display:flex;align-items:center}
-  .pdesc{margin-top:4px;color:var(--muted);font-size:11px}
-  label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px;font-weight:700}
-  select,input[type=text]{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:#0f0f15;color:var(--text);outline:none}
-  select:focus,input:focus{border-color:rgba(245,197,24,.65)}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .field{margin-bottom:10px}
-  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
-  .toggle{width:38px;height:20px;background:var(--border);border-radius:999px;position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
-  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
-  .toggle.on{background:rgba(245,197,24,.65)}
-  .toggle.on::after{transform:translateX(18px)}
-  .slider{width:100%}
-  .sliderline{display:flex;align-items:center;gap:10px}
-  .sliderline .val{width:42px;text-align:right;color:var(--accent);font-weight:900;font-size:12px}
-  input[type=range]{width:100%}
-  .colorline{display:flex;align-items:center;gap:10px}
-  input[type=color]{width:36px;height:28px;border-radius:8px;border:1px solid var(--border);background:transparent;padding:0}
-  .ar-tabs{display:flex;gap:6px}
-  .ar{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#0f0f15;color:var(--muted);cursor:pointer;font-weight:800;font-size:12px}
-  .ar.active{border-color:var(--accent);color:var(--accent);background:rgba(245,197,24,.06)}
-  .btn{position:sticky;bottom:0;width:100%;padding:14px;border:none;border-radius:12px;background:var(--accent);color:#000;font-weight:1000;letter-spacing:1px;font-size:14px;cursor:pointer;transition:.15s;flex-shrink:0;z-index:2;box-shadow:0 -10px 20px rgba(11,11,15,.9)}
-  .btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed}
-  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 28px rgba(245,197,24,.18)}
-  /* right */
-  .main{display:flex;flex-direction:column;background:var(--bg)}
-  .mainbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
-  .mainbar .tc{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;color:var(--muted);font-size:12px}
-  .mainbar .tc b{color:var(--text)}
-  .canvaswrap{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;position:relative}
-  .outer{border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px var(--border), 0 30px 90px rgba(0,0,0,.65)}
-  canvas{display:block;background:#000}
-  .play{padding:12px 16px;border-top:1px solid var(--border);background:rgba(255,255,255,.03)}
-  .playtop{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:10px}
-  .playbtn{width:38px;height:38px;border-radius:50%;border:none;background:var(--accent);color:#000;font-weight:900;cursor:pointer}
-  .scrub{width:100%}
-  .dl{display:none;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:rgba(62,207,108,.08);border-top:1px solid rgba(62,207,108,.25)}
-  .dl.show{display:flex}
-  .dl a{padding:10px 18px;border-radius:10px;background:var(--good);color:#000;text-decoration:none;font-weight:900}
-  .overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:rgba(0,0,0,.75);color:var(--text);font-weight:800}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px}
+  .app{display:grid;grid-template-columns:360px 1fr;height:100vh;overflow:hidden}
+  .side{background:var(--panel);border-right:1px solid var(--line);padding:18px;padding-right:14px;overflow-y:scroll;height:100vh;scrollbar-gutter:stable}
+  /* Style the scrollbar so it's visible but unobtrusive */
+  .side::-webkit-scrollbar{width:10px}
+  .side::-webkit-scrollbar-track{background:transparent}
+  .side::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;border:2px solid var(--panel)}
+  .side::-webkit-scrollbar-thumb:hover{background:#3a3a3a}
+  .main{padding:18px;display:flex;flex-direction:column;gap:14px;height:100vh;overflow:hidden;min-height:0}
+  h1{margin:0 0 4px;font-size:18px;font-weight:700;letter-spacing:-0.01em}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+
+  .sec{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+  .sec:last-child{border:0}
+  .sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+  label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+  select,input[type=text],input[type=number]{
+    width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit
+  }
+  input[type=color]{width:40px;height:32px;background:transparent;border:1px solid var(--line);border-radius:6px;padding:2px;cursor:pointer}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .row > div{flex:1}
+  .presets{display:grid;grid-template-columns:1fr;gap:8px}
+  .preset{
+    padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    cursor:pointer;transition:all .15s;
+  }
+  .preset:hover{border-color:var(--accent-hi)}
+  .preset.active{border-color:var(--accent);background:rgba(93,45,230,.12)}
+  .preset-name{font-weight:700;font-size:13px;margin-bottom:2px}
+  .preset-desc{font-size:11px;color:var(--muted)}
+  button{
+    background:var(--accent);color:white;border:0;border-radius:6px;padding:10px 14px;
+    font-size:13px;font-weight:600;cursor:pointer;font-family:inherit
+  }
+  button:hover{background:var(--accent-hi)}
+  button.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+  button.ghost:hover{border-color:var(--accent-hi)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+
+  .canvas-wrap{
+    position:relative;background:#000;border:1px solid var(--line);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;flex:1 1 auto;min-height:0;overflow:hidden
+  }
+  canvas{max-width:100%;max-height:100%;display:block;object-fit:contain}
+
+  .controls{display:flex;gap:8px;align-items:center;background:var(--panel);padding:10px;border-radius:8px;border:1px solid var(--line);flex:0 0 auto}
+  .tc{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);min-width:70px}
+  .scrub{flex:1;accent-color:var(--accent)}
+
+  .dropzone{
+    border:2px dashed var(--line);border-radius:8px;padding:24px 12px;text-align:center;
+    color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s
+  }
+  .dropzone:hover,.dropzone.drag{border-color:var(--accent);color:var(--text);background:rgba(93,45,230,.06)}
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:1000
+  }
   .overlay.show{display:flex}
-  .bar{width:280px;height:6px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden}
-  .bar>div{height:100%;width:0%;background:var(--accent);transition:width .1s}
-  .small{color:var(--muted);font-size:12px;font-weight:600;text-align:center;max-width:420px}
-  select{font-family:inherit}
-  .preset-io{display:flex;gap:8px;margin-top:10px}
-  .preset-btn{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);font-size:11px;font-weight:800;cursor:pointer;transition:.15s;letter-spacing:.3px}
-  .preset-btn:hover{border-color:rgba(245,197,24,.5);color:var(--text)}
-  .preset-btn-accent{border-color:rgba(245,197,24,.35);color:var(--accent);background:rgba(245,197,24,.05)}
-  .preset-btn-accent:hover{background:rgba(245,197,24,.1)}
-  .srt-instructions{background:rgba(245,197,24,.05);border:1px solid rgba(245,197,24,.22);border-radius:8px;padding:11px 12px;margin-bottom:11px}
-  .srt-inst-title{font-size:11px;font-weight:900;color:var(--accent);letter-spacing:.5px;margin-bottom:6px}
-  .srt-inst-body{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:9px}
-  .srt-settings{background:rgba(0,0,0,.25);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;margin-bottom:9px}
-  .srt-row{display:flex;justify-content:space-between;align-items:center;font-size:11px}
-  .srt-label{color:var(--muted)}
-  .srt-val{font-family:ui-monospace,monospace;color:var(--accent);font-weight:700;font-size:11px;background:rgba(245,197,24,.1);border-radius:4px;padding:1px 6px}
-  .srt-inst-sub{font-size:11px;color:var(--muted);line-height:1.4}
-  .editor-wrap{position:relative}
-  .caption-editor{width:100%;min-height:120px;max-height:260px;padding:10px;border-radius:8px;border:1px solid var(--border);background:#0f0f15;color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.7;resize:vertical;outline:none;tab-size:2}
-  .caption-editor:focus{border-color:rgba(245,197,24,.65)}
-  .caption-editor::placeholder{color:rgba(162,162,179,.4)}
-  .editor-toolbar{display:flex;gap:6px;margin-bottom:8px}
-  .editor-btn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);font-size:10px;font-weight:800;cursor:pointer;transition:.15s;letter-spacing:.3px}
-  .editor-btn:hover{border-color:rgba(245,197,24,.5);color:var(--text)}
-  .editor-btn-warn{border-color:rgba(224,88,88,.3);color:var(--bad)}
-  .editor-btn-warn:hover{border-color:var(--bad);background:rgba(224,88,88,.08)}
-  .editor-stats{font-size:10px;color:var(--muted);margin-top:6px;font-family:ui-monospace,monospace}
-  .editor-stats b{color:var(--accent);font-weight:700}
-  .editor-badge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.5px;padding:2px 6px;border-radius:4px;margin-left:auto}
-  .badge-manual{background:rgba(245,197,24,.12);color:var(--accent);border:1px solid rgba(245,197,24,.25)}
-  .badge-auto{background:rgba(162,162,179,.1);color:var(--muted);border:1px solid rgba(162,162,179,.2)}
+  .overlay-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px;min-width:300px;text-align:center}
+  .bar{width:100%;height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:10px}
+  .bar-fill{height:100%;background:var(--accent);width:0%;transition:width .2s}
+
+  .stats{font-size:11px;color:var(--muted);padding:8px;background:var(--panel2);border-radius:6px;margin-top:8px}
+  .stats b{color:var(--text)}
+
+  .pill-color-row{display:none}
+  .pill-color-row.show{display:flex}
+  .build-row{display:none}
+  .build-row.show{display:flex}
+
+  /* Toggle switch */
+  .tog-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;gap:10px}
+  .tog-row > .tog-label{flex:1;min-width:0}
+  .tog-row > .tog-label > div:first-child{font-size:13px;color:var(--text)}
+  .tog-row > .tog-label > div:last-child{font-size:11px;color:var(--muted);margin-top:2px}
+  .tog{
+    position:relative;width:38px;height:22px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:11px;cursor:pointer;flex:0 0 auto;transition:all .15s
+  }
+  .tog::after{
+    content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#666;
+    border-radius:50%;transition:all .15s
+  }
+  .tog.on{background:var(--accent);border-color:var(--accent)}
+  .tog.on::after{background:#fff;left:18px}
+  .sub-opts{padding:10px 12px;background:var(--panel2);border-radius:6px;margin-top:4px;border:1px solid var(--line)}
+  .range-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .range-row label{flex:0 0 auto;margin:0;min-width:62px;max-width:62px;font-size:10px}
+  .range-row input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+  .range-val{font-family:ui-monospace,monospace;font-size:11px;color:var(--text);flex:0 0 auto;min-width:38px;text-align:right;white-space:nowrap}
+
+  /* Text editor (nested) */
+  details.editor-wrap{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:0}
+  details.editor-wrap[open]{padding-bottom:10px}
+  details.editor-wrap > summary{
+    padding:10px 12px;cursor:pointer;font-size:12px;font-weight:600;user-select:none;
+    display:flex;align-items:center;gap:6px;list-style:none
+  }
+  details.editor-wrap > summary::-webkit-details-marker{display:none}
+  details.editor-wrap > summary::before{content:'▸';font-size:10px;transition:transform .15s;color:var(--muted)}
+  details.editor-wrap[open] > summary::before{transform:rotate(90deg)}
+  details.editor-wrap > summary .badge{
+    margin-left:auto;font-size:10px;padding:2px 6px;border-radius:3px;
+    background:rgba(93,45,230,.2);color:var(--accent-hi);font-weight:700
+  }
+  details.editor-wrap > summary .badge.manual{background:rgba(255,193,7,.2);color:#ffc107}
+  .editor-box{padding:0 12px}
+  .editor-box textarea{
+    width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:6px;padding:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px;
+    min-height:100px;max-height:200px;resize:vertical
+  }
+  .editor-box .hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4}
+  .editor-box button{padding:6px 10px;font-size:11px;margin-top:6px;margin-right:6px}
+  .editor-box .stats{margin-top:6px}
 </style>
 </head>
 <body>
-<div class="layout">
-  <div class="sidebar">
-    <div class="top">
-      <div class="logo">⚡</div>
-      <div class="title">WordPunch</div>
-      <div class="sub">by Hayden Crocker</div>
-    </div>
+<div class="app">
+  <aside class="side">
+    <h1>WordPunch <span style="color:var(--accent);font-weight:600;font-size:12px;vertical-align:super">V2</span></h1>
+    <div class="sub">SRT → punchy caption video</div>
 
-    <div class="card">
-      <div class="card-h"><div class="step">1</div> Import SRT</div>
-      <div class="card-b">
-        <div class="srt-instructions">
-          <div class="srt-inst-title">⚠︎ Export from Premiere first</div>
-          <div class="srt-inst-body">For word-by-word timing, each word needs its own caption line. In Premiere's <strong>Captions</strong> panel, use these settings:</div>
-          <div class="srt-settings">
-            <div class="srt-row"><span class="srt-label">Max length</span><span class="srt-val">7 chars</span></div>
-            <div class="srt-row"><span class="srt-label">Min duration</span><span class="srt-val">1.2 sec</span></div>
-            <div class="srt-row"><span class="srt-label">Gap between captions</span><span class="srt-val">0 frames</span></div>
-            <div class="srt-row"><span class="srt-label">Lines</span><span class="srt-val">Single</span></div>
-          </div>
-          <div class="srt-inst-sub">Export: <strong>Text panel</strong> → Captions tab → <strong>⋯</strong> → <em>Export to SRT file…</em></div>
-        </div>
-        <input id="file" type="file" accept=".srt" hidden>
-        <div class="drop" id="drop"><strong>Click to browse</strong> or drag &amp; drop</div>
-        <div class="status" id="st"></div>
+    <div class="sec">
+      <div class="sec-title">1. Load SRT</div>
+      <div id="drop" class="dropzone">
+        <div><b>Drop SRT here</b></div>
+        <div style="margin-top:4px">or click to browse</div>
       </div>
+      <input type="file" id="fileInput" accept=".srt" style="display:none">
+      <div class="stats" id="stats" style="display:none"></div>
     </div>
 
-    <div class="card" id="editorCard" style="display:none">
-      <div class="card-h"><div class="step">2</div> Edit Captions <span class="editor-badge badge-auto" id="editorBadge">AUTO</span></div>
-      <div class="card-b">
-        <div class="hint" style="margin-bottom:8px">Each line = one caption group. Hit <strong>Enter</strong> to split a word onto the next caption. Timing stays synced automatically.<br><span style="margin-top:5px;display:inline-block">Use <strong style="color:var(--accent);font-family:ui-monospace,monospace">^</strong> to mark superscript — e.g. <code style="color:var(--accent);background:rgba(245,197,24,.1);border-radius:3px;padding:0 4px">1^st^</code> or <code style="color:var(--accent);background:rgba(245,197,24,.1);border-radius:3px;padding:0 4px">®^</code></span></div>
-        <div class="editor-toolbar">
-          <button class="editor-btn" id="editorReflow">↻ Re-flow from WPC</button>
-          <button class="editor-btn editor-btn-warn" id="editorReset">✕ Reset to original</button>
+    <div class="sec">
+      <div class="sec-title">2. Style</div>
+      <div class="presets">
+        <div class="preset active" data-preset="row">
+          <div class="preset-name">ROW</div>
+          <div class="preset-desc">4 words across · yellow highlight</div>
         </div>
-        <div class="editor-wrap">
-          <textarea class="caption-editor" id="captionEditor" placeholder="Load an SRT to see captions here..." spellcheck="false"></textarea>
+        <div class="preset" data-preset="punch">
+          <div class="preset-name">PUNCH</div>
+          <div class="preset-desc">One word pop · MrBeast style</div>
         </div>
-        <div class="editor-stats" id="editorStats"></div>
+        <div class="preset" data-preset="pill">
+          <div class="preset-name">PILL</div>
+          <div class="preset-desc">4 words across · pill highlight</div>
+        </div>
+        <div class="preset" data-preset="build">
+          <div class="preset-name">BUILD</div>
+          <div class="preset-desc">Words fade in as sentence builds</div>
+        </div>
       </div>
+      <button class="ghost" id="resetPresetBtn" style="width:100%;margin-top:8px;padding:7px;font-size:11px">↺ Reset to preset default</button>
     </div>
 
-    <div class="card">
-      <div class="card-h"><div class="step">3</div> Style preset</div>
-      <div class="card-b">
-        <div class="preset-grid" id="presets"></div>
-        <div class="preset-io">
-          <input id="presetFile" type="file" accept=".json" hidden>
-          <button class="preset-btn" id="importPreset">⬆ Import</button>
-          <button class="preset-btn preset-btn-accent" id="exportPreset">⬇ Save preset</button>
-        </div>
-        <div class="status" id="presetSt"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-h"><div class="step">4</div> Customize</div>
-      <div class="card-b">
-        <div class="field">
-          <label>Caption Style <span style="color:var(--muted);font-weight:400;font-size:10px">— how the active word looks</span></label>
-          <select id="mode">
-            <option value="karaoke">Highlight — active word in hi color</option>
-            <option value="dim">Dim — others fade out, active is bright</option>
-            <option value="solid">Solid — whole group in hi color</option>
-            <option value="wordbox">Word Box — box behind active word</option>
-            <option value="ghostline">Ghost — bg box + next group preview</option>
-            <option value="twobox">Two-tone — bg box, active vs muted</option>
+    <div class="sec">
+      <div class="sec-title">3. Font</div>
+      <div class="row">
+        <div>
+          <label>Family</label>
+          <select id="fontFamily">
+            <optgroup label="Bold display">
+              <option value="Anton">Anton</option>
+              <option value="Archivo Black">Archivo Black</option>
+              <option value="Bebas Neue">Bebas Neue</option>
+              <option value="Passion One">Passion One</option>
+              <option value="Luckiest Guy">Luckiest Guy</option>
+              <option value="Permanent Marker">Permanent Marker</option>
+            </optgroup>
+            <optgroup label="Sans">
+              <option value="Inter" selected>Inter</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Oswald">Oswald</option>
+              <option value="Poppins">Poppins</option>
+            </optgroup>
+            <optgroup label="Custom" id="customFontGroup" style="display:none">
+              <!-- populated when user uploads -->
+            </optgroup>
           </select>
         </div>
-
-        <div class="field">
-          <label>Word Entry <span style="color:var(--muted);font-weight:400;font-size:10px">— how words arrive on screen</span></label>
-          <select id="animMode">
-            <option value="none">None — whole group at once</option>
-            <option value="typewriter">Typewriter — words pop in one by one</option>
-            <option value="letters">Letters — letter by letter reveal</option>
-            <option value="slam">Slam — each word scales in hard</option>
-            <option value="fadeup">Fade Up — each word rises in</option>
-            <option value="scale">Scale Pop — each word pops in</option>
-            <option value="bounce">Bounce — each word drops in</option>
-            <option value="fill">Fill In — words light up progressively</option>
+        <div style="flex:0 0 auto">
+          <label>Weight</label>
+          <select id="fontWeight">
+            <option value="400">400</option>
+            <option value="700">700</option>
+            <option value="900" selected>900</option>
           </select>
         </div>
+      </div>
+      <button class="ghost" id="uploadFontBtn" style="width:100%;padding:8px 10px;font-size:12px">+ Upload custom font (.ttf / .otf / .woff / .woff2)</button>
+      <input type="file" id="fontFileInput" accept=".ttf,.otf,.woff,.woff2,font/*" style="display:none">
+      <div id="fontStatus" style="font-size:11px;color:var(--muted);margin-top:6px;min-height:14px"></div>
+    </div>
 
-        <div class="field" id="animSpeedField">
-          <label>Anim Speed: <span id="animSpeedVal">0.08</span>s per word</label>
-          <input class="slider" type="range" id="animSpeed" min="20" max="300" value="80">
+    <div class="sec">
+      <div class="sec-title">4. Colors</div>
+      <div class="row">
+        <div>
+          <label>Text</label>
+          <input type="color" id="baseColor" value="#FFFFFF">
         </div>
+        <div>
+          <label>Highlight</label>
+          <input type="color" id="hiColor" value="#FFD700">
+        </div>
+      </div>
+      <div class="row pill-color-row" id="pillColorRow">
+        <div>
+          <label>Pill text color</label>
+          <input type="color" id="pillTextColor" value="#000000">
+        </div>
+      </div>
+      <div class="row build-row" id="buildRow">
+        <div>
+          <label>Pre-reveal color</label>
+          <input type="color" id="preRevealColor" value="#888888">
+        </div>
+      </div>
+      <div class="range-row build-row" id="buildOpacityRow">
+        <label>Pre-reveal opacity</label>
+        <input type="range" id="preRevealOpacity" min="0" max="100" step="5" value="30">
+        <div class="range-val" id="preRevealOpacityVal">30%</div>
+      </div>
+    </div>
 
+    <div class="sec">
+      <div class="sec-title">5. Text Options</div>
+
+      <div class="row">
+        <div>
+          <label>Font Size</label>
+          <input type="number" id="size" value="70" min="12" max="300" step="1">
+        </div>
+        <div>
+          <label>Words / Caption</label>
+          <select id="wpc">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>ALL CAPS</div><div>uppercase every word</div></div>
+        <div class="tog on" id="tAllCaps"></div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>Text Stroke</div><div>black outline around letters</div></div>
+        <div class="tog on" id="tStroke"></div>
+      </div>
+      <div class="sub-opts" id="strokeOpts">
+        <div class="range-row">
+          <label>Width</label>
+          <input type="range" id="strokeW" min="1" max="16" step="1" value="6">
+          <div class="range-val" id="strokeWVal">6</div>
+        </div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>Drop Shadow</div><div>soft shadow behind text</div></div>
+        <div class="tog" id="tShadow"></div>
+      </div>
+      <div class="sub-opts" id="shadowOpts" style="display:none">
+        <div class="range-row">
+          <label>Blur</label>
+          <input type="range" id="shadowBlur" min="0" max="40" step="1" value="12">
+          <div class="range-val" id="shadowBlurVal">12</div>
+        </div>
+        <div class="range-row">
+          <label>Offset Y</label>
+          <input type="range" id="shadowY" min="-20" max="20" step="1" value="4">
+          <div class="range-val" id="shadowYVal">4</div>
+        </div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>Background Box</div><div>solid box behind the whole line</div></div>
+        <div class="tog" id="tBgBox"></div>
+      </div>
+      <div class="sub-opts" id="bgBoxOpts" style="display:none">
         <div class="row">
-          <div class="field" style="grid-column:1/-1">
-            <label>Font Family</label>
-            <select id="fontSelect"></select>
-          </div>
-        </div>
-
-        <div class="field" style="margin-top:-4px">
-          <label>Custom Font <span style="color:var(--muted);font-weight:400;font-size:10px">— .ttf .otf .woff .woff2</span></label>
-          <input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden>
-          <div class="drop" id="fontDrop" style="margin-top:0;padding:10px 14px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px">
-            <span style="font-size:16px">🔤</span><span><strong>Click to upload</strong> or drag a font file</span>
-          </div>
-          <div class="status" id="fontSt"></div>
-        </div>
-
-        <div class="field">
-          <label>Font Size: <span id="sizeVal">90</span>px</label>
-          <input class="slider" type="range" id="size" min="24" max="160" value="90">
-        </div>
-
-        <div class="row">
-          <div class="field">
-            <label>Base Color</label>
-            <div class="colorline"><input type="color" id="base" value="#FFFFFF"><span id="baseHex" style="font-family:ui-monospace,monospace;color:var(--muted)">#FFFFFF</span></div>
-          </div>
-          <div class="field">
-            <label>Highlight Color</label>
-            <div class="colorline"><input type="color" id="hi" value="#FFD700"><span id="hiHex" style="font-family:ui-monospace,monospace;color:var(--muted)">#FFD700</span></div>
-          </div>
-        </div>
-
-        <div class="toggle-row">
           <div>
-            <label style="margin:0">Text Stroke</label>
-          </div>
-          <div class="toggle on" id="tStroke"></div>
-        </div>
-        <div class="row field" id="strokeOpts">
-          <div>
-            <label>Stroke Color</label>
-            <input type="color" id="strokeColor" value="#000000">
-          </div>
-          <div>
-            <label>Width: <span id="strokeVal">4</span>px</label>
-            <input type="range" id="strokeW" min="0" max="12" value="4">
+            <label>Color</label>
+            <input type="color" id="bgBoxColor" value="#000000">
           </div>
         </div>
+        <div class="range-row">
+          <label>Opacity</label>
+          <input type="range" id="bgBoxOpacity" min="0" max="100" step="5" value="70">
+          <div class="range-val" id="bgBoxOpacityVal">70</div>
+        </div>
+        <div class="range-row">
+          <label>Offset Y</label>
+          <input type="range" id="bgBoxOffsetY" min="-60" max="60" step="1" value="-10">
+          <div class="range-val" id="bgBoxOffsetYVal">-10px</div>
+        </div>
+        <div class="range-row">
+          <label>Padding</label>
+          <input type="range" id="bgBoxPad" min="10" max="120" step="2" value="45">
+          <div class="range-val" id="bgBoxPadVal">45</div>
+        </div>
+        <div class="range-row">
+          <label>Rounding</label>
+          <input type="range" id="bgBoxRadius" min="0" max="100" step="2" value="20">
+          <div class="range-val" id="bgBoxRadiusVal">20</div>
+        </div>
+      </div>
 
-        <div class="toggle-row">
-          <div><label style="margin:0">Drop Shadow</label></div>
-          <div class="toggle" id="tShadow"></div>
+      <div class="tog-row">
+        <div class="tog-label"><div>Word Wrap</div><div>break long captions into multiple lines</div></div>
+        <div class="tog" id="tWrap"></div>
+      </div>
+      <div class="sub-opts" id="wrapOpts" style="display:none">
+        <div class="range-row">
+          <label>Max width</label>
+          <input type="range" id="wrapW" min="40" max="95" step="5" value="80">
+          <div class="range-val" id="wrapWVal">80%</div>
         </div>
-        <div class="row field" id="shadowOpts" style="display:none">
-          <div>
-            <label>Shadow Color</label>
-            <input type="color" id="shadowColor" value="#000000">
-          </div>
-          <div>
-            <label>Blur: <span id="shadowVal">6</span>px</label>
-            <input type="range" id="shadowBlur" min="0" max="30" value="6">
-          </div>
-        </div>
+      </div>
 
-        <div class="toggle-row">
-          <div><label style="margin:0">Background Box</label></div>
-          <div class="toggle" id="tBg"></div>
-        </div>
-        <div class="row field" id="bgOpts" style="display:none">
-          <div>
-            <label>BG Color</label>
-            <input type="color" id="bgColor" value="#000000">
-          </div>
-          <div>
-            <label>Opacity: <span id="bgVal">70</span>%</label>
-            <input type="range" id="bgOpacity" min="0" max="100" value="70">
-          </div>
-        </div>
+      <div class="range-row" style="margin-top:10px">
+        <label>Letter Spacing</label>
+        <input type="range" id="letterSpacing" min="-5" max="15" step="1" value="0">
+        <div class="range-val" id="letterSpacingVal">0px</div>
+      </div>
+    </div>
 
-        <div class="row">
-          <div class="field">
-            <label>Words per Caption</label>
-            <select id="wpc">
-              <option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>ALL CAPS</label>
-            <div class="toggle on" id="tCaps"></div>
-          </div>
+    <div class="sec">
+      <div class="sec-title">6. Layout</div>
+      <div class="row">
+        <div>
+          <label>Aspect</label>
+          <select id="ar">
+            <option value="9:16" selected>9:16 (vertical)</option>
+            <option value="1:1">1:1 (square)</option>
+            <option value="16:9">16:9 (horizontal)</option>
+          </select>
         </div>
-
-        <div class="toggle-row">
-          <div><label style="margin:0">Word Wrap</label><div style="color:var(--muted);font-size:10px;margin-top:2px">break text into multiple lines</div></div>
-          <div class="toggle" id="tWrap"></div>
-        </div>
-        <div class="field" id="wrapOpts" style="display:none">
-          <label>Max Line Width: <span id="wrapVal">80</span>% of canvas</label>
-          <input class="slider" type="range" id="wrapWidth" min="30" max="98" value="80">
-        </div>
-
-        <div class="field">
-          <label>Letter Spacing: <span id="lsVal">0</span>px</label>
-          <input class="slider" type="range" id="letterSpacing" min="-4" max="24" value="0">
-        </div>
-
-        <div class="field">
+        <div>
           <label>Vertical Position</label>
           <select id="vpos">
-            <option value="top">Top Third</option>
-            <option value="center" selected>Center</option>
-            <option value="bottom">Bottom Third</option>
+            <option value="top">Top</option>
+            <option value="center">Center</option>
+            <option value="bottom" selected>Bottom</option>
           </select>
-        </div>
-
-        <div class="field">
-          <label>Aspect Ratio</label>
-          <div class="ar-tabs">
-            <button class="ar ar-btn" data-ar="9:16">9:16</button>
-            <button class="ar ar-btn active" data-ar="16:9">16:9</button>
-            <button class="ar ar-btn" data-ar="1:1">1:1</button>
-          </div>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-h"><div class="step">5</div> Export</div>
-      <div class="card-b">
-        <div class="field">
-          <label>Format</label>
-          <div class="ar-tabs">
-            <button class="ar active" id="fmtMp4">MP4</button>
-            <button class="ar" id="fmtPng">PNG Sequence</button>
+    <div class="sec">
+      <div class="sec-title">7. Caption Editor</div>
+      <details class="editor-wrap">
+        <summary>
+          Edit captions
+          <span class="badge" id="editorBadge">AUTO</span>
+        </summary>
+        <div class="editor-box">
+          <textarea id="captionEditor" placeholder="Load an SRT to see captions here. One line = one caption group. You can re-order, re-group, or edit text — timing stays linked to the original words."></textarea>
+          <div class="stats" id="editorStats" style="font-size:11px;color:var(--muted);padding:6px 0"></div>
+          <div>
+            <button id="editorReflow" class="ghost">↻ Re-flow from WPC</button>
+            <button id="editorReset" class="ghost">Reset (1/line)</button>
           </div>
+          <div class="hint">One caption group per line. Edit word text to re-word. Leave word count the same or the editor will flag a mismatch.</div>
         </div>
-        <div class="field">
-          <label>Frame Rate</label>
-          <select id="fpsSelect">
-            <option value="23.976">23.976 fps</option>
+      </details>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">8. Presets</div>
+      <div class="row" style="gap:8px">
+        <button class="ghost" id="savePresetBtn" style="flex:1;padding:8px">⬇ Save preset</button>
+        <button class="ghost" id="loadPresetBtn" style="flex:1;padding:8px">⬆ Load preset</button>
+      </div>
+      <input type="file" id="presetFileInput" accept=".json,application/json" style="display:none">
+      <div id="presetStatus" style="font-size:11px;color:var(--muted);margin-top:6px;min-height:14px"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">9. Export</div>
+      <div class="row">
+        <div>
+          <label>Format</label>
+          <select id="exportFmt">
+            <option value="mp4" selected>MP4 video</option>
+            <option value="png">PNG sequence (.zip)</option>
+          </select>
+        </div>
+        <div>
+          <label>Frame rate</label>
+          <select id="fps">
             <option value="24">24 fps</option>
             <option value="25">25 fps</option>
-            <option value="29.97">29.97 fps</option>
             <option value="30" selected>30 fps</option>
-            <option value="48">48 fps</option>
-            <option value="50">50 fps</option>
-            <option value="59.94">59.94 fps</option>
             <option value="60">60 fps</option>
           </select>
         </div>
-        <div id="bgSection">
-          <div class="field">
-            <label>Render Background</label>
-            <select id="renderBg">
-              <option value="green">🟢 Green Screen (Ultra Key in Premiere)</option>
-              <option value="blue">🔵 Blue Screen (Ultra Key — use with green fonts)</option>
-              <option value="black">⬛ Black (Screen blend in Premiere)</option>
-            </select>
-          </div>
-          <div class="hint" id="renderHint" style="margin-bottom:8px">In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green. Keeps dark strokes &amp; shadows!</div>
-        </div>
-        <div id="pngSection" style="display:none">
-          <div class="hint" style="margin-bottom:0">Exports a <strong>.zip</strong> of PNG frames with real alpha — no keying needed.<br>In Premiere: File → Import → select first frame → check <strong>Image Sequence</strong>.</div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Background</label>
+          <select id="bgMode">
+            <option value="black">Black</option>
+            <option value="green" selected>Green screen</option>
+            <option value="blue">Blue screen</option>
+            <option value="transparent">Transparent (PNG only)</option>
+          </select>
         </div>
       </div>
+      <button id="renderBtn" style="width:100%" disabled>Export</button>
     </div>
+  </aside>
 
-    <button class="btn" id="render" disabled>RENDER</button>
-  </div>
+  <main class="main">
+    <div class="canvas-wrap">
+      <canvas id="cv" width="1080" height="1920"></canvas>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="ghost">▶</button>
+      <div class="tc" id="tcCur">00:00.00</div>
+      <input type="range" id="scrub" class="scrub" min="0" max="1000" value="0">
+      <div class="tc" id="tcTot">00:00.00</div>
+    </div>
+  </main>
+</div>
 
-  <div class="main">
-    <div class="mainbar">
-      <div style="font-weight:900;letter-spacing:1px;color:var(--muted);text-transform:uppercase;font-size:12px">Live preview</div>
-      <div class="tc"><b id="tcCur">00:00.000</b> / <span id="tcTot">00:00.000</span></div>
-    </div>
-    <div class="canvaswrap">
-      <div class="outer"><canvas id="cv" width="1920" height="1080"></canvas></div>
-      <div class="overlay" id="ov">
-        <div style="font-size:20px;color:var(--accent);letter-spacing:1px">Rendering…</div>
-        <div class="bar"><div id="barFill"></div></div>
-        <div class="small" id="ovTxt">Preparing</div>
+<div class="overlay" id="importDialog">
+  <div class="overlay-box" style="text-align:left;min-width:340px;max-width:420px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px">Import preset</div>
+    <div id="importSummary" style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5"></div>
+    <div class="tog-row" style="padding:0;margin-bottom:6px">
+      <div class="tog-label">
+        <div>Import caption text</div>
+        <div>include edited caption lines from the preset</div>
       </div>
+      <div class="tog" id="importTextTog"></div>
     </div>
-    <div class="play">
-      <div class="playtop">
-        <div style="display:flex;align-items:center;gap:10px">
-          <button class="playbtn" id="play">▶</button>
-          <button class="playbtn" id="restart" title="restart" style="width:auto;padding:0 14px;border-radius:12px;background:rgba(255,255,255,.06);color:var(--text)">↺ Restart</button>
-        </div>
-        <div id="now" style="color:var(--accent);font-weight:900">— load an SRT to preview —</div>
+    <div class="tog-row" style="padding:0;margin-bottom:14px">
+      <div class="tog-label">
+        <div>Import custom font</div>
+        <div>register the font file if one is embedded</div>
       </div>
-      <input class="scrub" type="range" id="scrub" min="0" max="1000" value="0">
+      <div class="tog on" id="importFontTog"></div>
     </div>
-    <div class="dl" id="dl">
-      <div>
-        <div style="font-weight:900;color:var(--good)" id="dlTitle">Video ready!</div>
-        <div id="dlHint" style="color:var(--muted);font-size:12px">In Premiere: place above footage → Effects → Ultra Key → pick the green</div>
-      </div>
-      <a id="dlA" href="#" download="wordpunch_overlay.mp4">Download</a>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="ghost" id="importCancelBtn" style="padding:8px 14px">Cancel</button>
+      <button id="importApplyBtn" style="padding:8px 14px">Import</button>
     </div>
   </div>
 </div>
 
+<div class="overlay" id="ov">
+  <div class="overlay-box">
+    <div id="ovTxt">Rendering…</div>
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+  </div>
+</div>
+
 <script>
-/* =========================
-   Utilities + SRT parsing
-   ========================= */
-const qs = (s)=>document.querySelector(s);
-const qsa=(s)=>Array.from(document.querySelectorAll(s));
-function pad(n,l=2){n=Math.floor(n);return String(n).padStart(l,'0');}
-function fmtTC(t){
-  const m = Math.floor(t/60);
-  const s = t - m*60;
-  const ms = Math.floor((s%1)*1000);
-  return pad(m,2)+":"+pad(s,2)+"."+pad(ms,3);
+/* ========================================================================
+   WordPunch — stripped-down caption maker
+   ======================================================================== */
+
+const qs = s => document.querySelector(s);
+const cv = qs('#cv');
+const ctx = cv.getContext('2d');
+
+const el = {
+  drop: qs('#drop'),
+  fileInput: qs('#fileInput'),
+  stats: qs('#stats'),
+  fontFamily: qs('#fontFamily'),
+  fontWeight: qs('#fontWeight'),
+  uploadFontBtn: qs('#uploadFontBtn'),
+  fontFileInput: qs('#fontFileInput'),
+  fontStatus: qs('#fontStatus'),
+  customFontGroup: qs('#customFontGroup'),
+  baseColor: qs('#baseColor'),
+  hiColor: qs('#hiColor'),
+  pillTextColor: qs('#pillTextColor'),
+  pillColorRow: qs('#pillColorRow'),
+  preRevealColor: qs('#preRevealColor'),
+  preRevealOpacity: qs('#preRevealOpacity'),
+  preRevealOpacityVal: qs('#preRevealOpacityVal'),
+  buildRow: qs('#buildRow'),
+  buildOpacityRow: qs('#buildOpacityRow'),
+  // text options
+  wpc: qs('#wpc'),
+  tAllCaps: qs('#tAllCaps'),
+  tStroke: qs('#tStroke'),
+  strokeW: qs('#strokeW'),
+  strokeWVal: qs('#strokeWVal'),
+  strokeOpts: qs('#strokeOpts'),
+  tShadow: qs('#tShadow'),
+  shadowBlur: qs('#shadowBlur'),
+  shadowBlurVal: qs('#shadowBlurVal'),
+  shadowY: qs('#shadowY'),
+  shadowYVal: qs('#shadowYVal'),
+  shadowOpts: qs('#shadowOpts'),
+  tBgBox: qs('#tBgBox'),
+  bgBoxColor: qs('#bgBoxColor'),
+  bgBoxOpacity: qs('#bgBoxOpacity'),
+  bgBoxOpacityVal: qs('#bgBoxOpacityVal'),
+  bgBoxOffsetY: qs('#bgBoxOffsetY'),
+  bgBoxOffsetYVal: qs('#bgBoxOffsetYVal'),
+  bgBoxPad: qs('#bgBoxPad'),
+  bgBoxPadVal: qs('#bgBoxPadVal'),
+  bgBoxRadius: qs('#bgBoxRadius'),
+  bgBoxRadiusVal: qs('#bgBoxRadiusVal'),
+  bgBoxOpts: qs('#bgBoxOpts'),
+  tWrap: qs('#tWrap'),
+  wrapW: qs('#wrapW'),
+  wrapWVal: qs('#wrapWVal'),
+  wrapOpts: qs('#wrapOpts'),
+  letterSpacing: qs('#letterSpacing'),
+  letterSpacingVal: qs('#letterSpacingVal'),
+  // layout
+  ar: qs('#ar'),
+  size: qs('#size'),
+  vpos: qs('#vpos'),
+  // editor
+  captionEditor: qs('#captionEditor'),
+  editorBadge: qs('#editorBadge'),
+  editorStats: qs('#editorStats'),
+  editorReflow: qs('#editorReflow'),
+  editorReset: qs('#editorReset'),
+  // export
+  exportFmt: qs('#exportFmt'),
+  fps: qs('#fps'),
+  bgMode: qs('#bgMode'),
+  renderBtn: qs('#renderBtn'),
+  // presets
+  savePresetBtn: qs('#savePresetBtn'),
+  loadPresetBtn: qs('#loadPresetBtn'),
+  resetPresetBtn: qs('#resetPresetBtn'),
+  presetFileInput: qs('#presetFileInput'),
+  presetStatus: qs('#presetStatus'),
+  importDialog: qs('#importDialog'),
+  importSummary: qs('#importSummary'),
+  importTextTog: qs('#importTextTog'),
+  importFontTog: qs('#importFontTog'),
+  importCancelBtn: qs('#importCancelBtn'),
+  importApplyBtn: qs('#importApplyBtn'),
+  // playback
+  playBtn: qs('#playBtn'),
+  tcCur: qs('#tcCur'),
+  tcTot: qs('#tcTot'),
+  scrub: qs('#scrub'),
+  ov: qs('#ov'),
+  ovTxt: qs('#ovTxt'),
+  barFill: qs('#barFill'),
+};
+
+const PRESETS = {
+  row:   { wpc:4, mode:'row',   stroke:true,  strokeW:6,  base:'#FFFFFF', hi:'#FFD700' },
+  punch: { wpc:1, mode:'punch', stroke:true,  strokeW:8,  base:'#FFFFFF', hi:'#FFD700' },
+  pill:  { wpc:4, mode:'pill',  stroke:false, strokeW:0,  base:'#FFFFFF', hi:'#FFD700', pillText:'#000000' },
+  build: { wpc:5, mode:'build', stroke:false, strokeW:0,  base:'#FFFFFF', hi:'#FFD700', preColor:'#888888', preOpacity:30 },
+};
+
+// Full default-state map for each preset. Used by the "Reset to preset
+// default" button to put EVERY control back to a sensible starting point
+// for the active preset (not just the few values in PRESETS above).
+// Anything not listed here is left alone on reset.
+const PRESET_DEFAULTS = {
+  row: {
+    wpc: 4, allCaps: true, size: 70, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: true, strokeW: 6,
+    shadow: false, shadowBlur: 12, shadowY: 4,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'bottom',
+  },
+  punch: {
+    wpc: 1, allCaps: true, size: 120, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: true, strokeW: 8,
+    shadow: true, shadowBlur: 20, shadowY: 6,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'center',
+  },
+  pill: {
+    wpc: 4, allCaps: true, size: 70, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: false, strokeW: 6,
+    shadow: false, shadowBlur: 12, shadowY: 4,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'bottom',
+  },
+  build: {
+    wpc: 5, allCaps: false, size: 70, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: false, strokeW: 6,
+    shadow: false, shadowBlur: 12, shadowY: 4,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'bottom',
+  },
+};
+
+// Apply preset defaults to all the UI controls. Doesn't touch font / aspect /
+// fps / export format / SRT data / caption editor — those persist across
+// preset changes intentionally.
+function resetToPresetDefaults(){
+  const d = PRESET_DEFAULTS[S.preset];
+  if(!d) return;
+
+  el.wpc.value = String(d.wpc);
+  setTog(el.tAllCaps, !!d.allCaps);
+  el.size.value = String(d.size);
+  el.letterSpacing.value = String(d.letterSpacing);
+  el.letterSpacingVal.textContent = d.letterSpacing + 'px';
+  el.vpos.value = d.vpos;
+
+  el.baseColor.value = d.baseColor;
+  el.hiColor.value = d.hiColor;
+  el.pillTextColor.value = d.pillTextColor;
+  el.preRevealColor.value = d.preRevealColor;
+  el.preRevealOpacity.value = String(d.preRevealOpacity);
+  el.preRevealOpacityVal.textContent = d.preRevealOpacity + '%';
+
+  setTog(el.tStroke, d.stroke);
+  el.strokeOpts.style.display = d.stroke ? '' : 'none';
+  el.strokeW.value = String(d.strokeW);
+  el.strokeWVal.textContent = String(d.strokeW);
+
+  setTog(el.tShadow, d.shadow);
+  el.shadowOpts.style.display = d.shadow ? '' : 'none';
+  el.shadowBlur.value = String(d.shadowBlur);
+  el.shadowBlurVal.textContent = String(d.shadowBlur);
+  el.shadowY.value = String(d.shadowY);
+  el.shadowYVal.textContent = String(d.shadowY);
+
+  setTog(el.tBgBox, d.bgBox);
+  el.bgBoxOpts.style.display = d.bgBox ? '' : 'none';
+  el.bgBoxColor.value = d.bgBoxColor;
+  el.bgBoxOpacity.value = String(d.bgBoxOpacity);
+  el.bgBoxOpacityVal.textContent = String(d.bgBoxOpacity);
+  el.bgBoxOffsetY.value = String(d.bgBoxOffsetY);
+  el.bgBoxOffsetYVal.textContent = d.bgBoxOffsetY + 'px';
+  el.bgBoxPad.value = String(d.bgBoxPad);
+  el.bgBoxPadVal.textContent = String(d.bgBoxPad);
+  el.bgBoxRadius.value = String(d.bgBoxRadius);
+  el.bgBoxRadiusVal.textContent = String(d.bgBoxRadius);
+
+  setTog(el.tWrap, d.wrap);
+  el.wrapOpts.style.display = d.wrap ? '' : 'none';
+  el.wrapW.value = String(d.wrapW);
+  el.wrapWVal.textContent = d.wrapW + '%';
+
+  // Re-flow groups in case WPC changed and re-draw.
+  S.manualEdit = false;
+  regroup();
+  draw();
 }
-function parseTime(ts){
-  // 00:00:01,234 or .
-  const p = ts.replace(',','.').split(':');
-  return (+p[0])*3600 + (+p[1])*60 + parseFloat(p[2]);
-}
-function parseSRT(text){
-  const blocks = text.trim().replace(/\r\n/g,'\n').split(/\n\n+/);
-  const out=[];
-  for(const b of blocks){
-    const lines=b.trim().split('\n');
-    let timeLine = lines.find(l=>l.includes('-->'));
-    if(!timeLine) continue;
-    const m=timeLine.match(/(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})/);
-    if(!m) continue;
-    const idx = lines.indexOf(timeLine);
-    const caption = lines.slice(idx+1).join(' ').replace(/<[^>]+>/g,'').trim();
-    if(!caption) continue;
-    out.push({start:parseTime(m[1]), end:parseTime(m[2]), text:caption});
+
+const S = {
+  preset: 'row',
+  words: [],      // [{word, start, end}]
+  groups: [],     // [{wt:[...], start, end}]
+  duration: 0,
+  time: 0,
+  playing: false,
+  raf: 0,
+  lastTs: 0,
+  rendering: false,
+  manualEdit: false,
+};
+
+/* ---------- font loading ---------- */
+// Track fonts we've successfully loaded so we don't re-fetch.
+const loadedFonts = new Set();
+// Custom (uploaded) font names.
+const customFonts = new Set();
+
+async function ensureFontLoaded(family, weight){
+  const key = `${weight} "${family}"`;
+  if(loadedFonts.has(key)) return true;
+  if(!document.fonts || !document.fonts.load){
+    // Old browser — just hope the CSS link loaded it.
+    loadedFonts.add(key);
+    return true;
   }
-  return out;
+  try {
+    // Loading a specific weight+family at a nominal size — the returned
+    // array is the matched FontFace objects. "1em" is just a probe; once
+    // resolved, ctx.font with ANY size will have the glyphs.
+    await document.fonts.load(`${weight} 16px "${family}"`);
+    // Also wait for document.fonts.ready in case the link tag is still
+    // fetching stylesheets for this family.
+    await document.fonts.ready;
+    loadedFonts.add(key);
+    return true;
+  } catch(err){
+    console.warn('Font load failed:', family, weight, err);
+    return false;
+  }
 }
-function splitWords(entries){
-  const words=[];
+
+// Called whenever family/weight changes: load the font, then redraw.
+async function handleFontChange(){
+  const family = el.fontFamily.value;
+  const weight = el.fontWeight.value;
+  el.fontStatus.textContent = `Loading ${family}…`;
+  const ok = await ensureFontLoaded(family, weight);
+  if(ok){
+    el.fontStatus.textContent = customFonts.has(family) ? `Custom: ${family}` : '';
+    draw();
+  } else {
+    el.fontStatus.textContent = `⚠ Could not load ${family}`;
+    draw();
+  }
+}
+
+// Handle custom font upload.
+async function handleCustomFontFile(file){
+  el.fontStatus.textContent = `Loading ${file.name}…`;
+  try {
+    const buf = await file.arrayBuffer();
+    // Sanitize the filename into a font-family name. Strip extension,
+    // replace weird chars with spaces, collapse whitespace, trim.
+    let name = file.name.replace(/\.(ttf|otf|woff2?|TTF|OTF|WOFF2?)$/, '')
+      .replace(/[^a-zA-Z0-9\s_-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Custom Font';
+
+    // If the user re-uploads under the same name, append a counter.
+    let finalName = name;
+    let n = 2;
+    while(customFonts.has(finalName)) finalName = `${name} ${n++}`;
+
+    const face = new FontFace(finalName, buf);
+    await face.load();
+    document.fonts.add(face);
+    customFonts.add(finalName);
+    loadedFonts.add(`400 "${finalName}"`);
+    loadedFonts.add(`700 "${finalName}"`);
+    loadedFonts.add(`900 "${finalName}"`);
+
+    // Add to the Custom optgroup in the select.
+    el.customFontGroup.style.display = '';
+    const opt = document.createElement('option');
+    opt.value = finalName;
+    opt.textContent = finalName;
+    el.customFontGroup.appendChild(opt);
+
+    // Select it.
+    el.fontFamily.value = finalName;
+    el.fontStatus.textContent = `✓ Loaded: ${finalName}`;
+    draw();
+  } catch(err){
+    console.error(err);
+    el.fontStatus.textContent = `⚠ Failed: ${err.message}`;
+  }
+}
+
+el.fontFamily.addEventListener('change', handleFontChange);
+el.fontWeight.addEventListener('change', handleFontChange);
+el.uploadFontBtn.addEventListener('click', ()=> el.fontFileInput.click());
+el.fontFileInput.addEventListener('change', e => {
+  if(e.target.files[0]) handleCustomFontFile(e.target.files[0]);
+  el.fontFileInput.value = ''; // allow re-upload of same file
+});
+
+/* ---------- aspect / sizing ---------- */
+function applyAspect(){
+  const ar = el.ar.value;
+  if(ar === '9:16'){ cv.width=1080; cv.height=1920; }
+  else if(ar === '1:1'){ cv.width=1080; cv.height=1080; }
+  else { cv.width=1920; cv.height=1080; }
+  draw();
+}
+
+/* ---------- SRT parsing ---------- */
+function parseSRT(text){
+  // Normalize line endings, split into entries on blank lines
+  const blocks = text.replace(/\r\n/g,'\n').split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+  const entries = [];
+  for(const b of blocks){
+    const lines = b.split('\n');
+    // find the timestamp line (contains -->)
+    const tsIdx = lines.findIndex(l => l.includes('-->'));
+    if(tsIdx < 0) continue;
+    const tsLine = lines[tsIdx];
+    const m = tsLine.match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/);
+    if(!m) continue;
+    const start = (+m[1])*3600 + (+m[2])*60 + (+m[3]) + (+m[4])/1000;
+    const end   = (+m[5])*3600 + (+m[6])*60 + (+m[7]) + (+m[8])/1000;
+    const text = lines.slice(tsIdx+1).join(' ').trim();
+    if(text) entries.push({start, end, text});
+  }
+  return entries;
+}
+
+function entriesToWords(entries){
+  const words = [];
   for(const e of entries){
-    const ws=e.text.split(/\s+/).filter(Boolean);
+    const ws = e.text.split(/\s+/).filter(Boolean);
     if(!ws.length) continue;
-    const dur=Math.max(0.01, e.end-e.start);
-    const per=dur/ws.length;
-    for(let i=0;i<ws.length;i++){
-      words.push({word:ws[i], start:e.start+i*per, end:e.start+(i+1)*per});
+    const dur = Math.max(0.001, e.end - e.start);
+    const per = dur / ws.length;
+    for(let i=0; i<ws.length; i++){
+      words.push({
+        word: ws[i],
+        start: e.start + i*per,
+        end:   e.start + (i+1)*per,
+      });
     }
   }
   return words;
 }
+
+/* ---------- grouping ---------- */
+// Group words by WPC. Only split early on LARGE gaps (scene breaks, >1.5s).
+// This is the fix for the old bug where small pauses fragmented groups.
 function groupWords(words, size){
-  const MAX_GAP = 0.35;
-  const groups=[];
-  let cur=[];
+  if(!words.length) return [];
+  const BREAK_GAP = 1.5;
+  const groups = [];
+  let cur = [];
   for(const w of words){
-    if(!cur.length){cur=[w]; continue;}
-    const prev=cur[cur.length-1];
-    const gap=w.start-prev.end;
-    if(cur.length>=size || gap>MAX_GAP){
+    if(!cur.length){ cur = [w]; continue; }
+    const gap = w.start - cur[cur.length-1].end;
+    if(cur.length >= size || gap > BREAK_GAP){
       groups.push(cur);
-      cur=[w];
-    } else cur.push(w);
+      cur = [w];
+    } else {
+      cur.push(w);
+    }
   }
   if(cur.length) groups.push(cur);
-  return groups.map(g=>({
-    wt:g,
-    start:g[0].start,
-    end:g[g.length-1].end,
-    text:g.map(x=>x.word).join(' ')
+  return groups.map(g => ({
+    wt: g,
+    start: g[0].start,
+    end: g[g.length-1].end,
   }));
 }
 
-/* =========================
-   State
-   ========================= */
-const PRESETS = {
-  // 6 clean starting points — one mode + one entry each, easy to amp up
-  clean:  {name:"CLEAN",   desc:"Highlight · Fade Up",    font:"Poppins",     size:70, base:"#FFFFFF", hi:"#FFD700", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:false, vpos:"bottom", animMode:"fadeup",     mode:"karaoke",  wrapEnabled:false, wrapWidth:80},
-  punch:  {name:"PUNCH",   desc:"Solid · Slam",           font:"Impact",      size:88, base:"#FFFFFF", hi:"#FF4444", stroke:true,  strokeColor:"#000000", strokeW:5,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"slam",       mode:"solid",    wrapEnabled:false, wrapWidth:80},
-  pill:   {name:"PILL",    desc:"Highlight · Typewriter", font:"Montserrat",  size:58, base:"#FFFFFF", hi:"#5BE5A0", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#000000", bgOp:75,  caps:false, vpos:"bottom", animMode:"typewriter", mode:"karaoke",  wrapEnabled:false, wrapWidth:80},
-  focus:  {name:"FOCUS",   desc:"Dim · Scale Pop",        font:"DM Sans",     size:68, base:"#FFFFFF", hi:"#FFFFFF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:true,  shadowColor:"#000000", shadowBlur:18, bg:false, bgColor:"#000000", bgOp:0,   caps:false, vpos:"center", animMode:"scale",      mode:"dim",      wrapEnabled:false, wrapWidth:80},
-  ticker: {name:"TICKER",  desc:"Ghost · None",           font:"Arial Black", size:58, base:"#FFFFFF", hi:"#FFFFFF", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:true,  bgColor:"#111111", bgOp:90,  caps:true,  vpos:"center", animMode:"none",       mode:"ghostline",wrapEnabled:false, wrapWidth:80},
-  marker: {name:"MARKER",  desc:"Word Box · Bounce",      font:"Anton",       size:76, base:"#FFFFFF", hi:"#F5C518", stroke:false, strokeColor:"#000000", strokeW:0,  shadow:false, shadowColor:"#000000", shadowBlur:0,  bg:false, bgColor:"#000000", bgOp:70,  caps:true,  vpos:"center", animMode:"bounce",     mode:"wordbox",  wrapEnabled:false, wrapWidth:80},
-};
-
-const S = {
-  preset:"clean",
-  entries:[],
-  words:[],
-  groups:[],
-  duration:0,
-  ar:"16:9",
-  time:0,
-  playing:false,
-  raf:0,
-  last:0,
-  blob:null,
-  filename:"wordpunch",
-  rendering:false,
-};
-
-/* =========================
-   UI binding
-   ========================= */
-const el = {
-  file: qs('#file'),
-  drop: qs('#drop'),
-  st: qs('#st'),
-  presets: qs('#presets'),
-  render: qs('#render'),
-  mode: qs('#mode'),
-  fontSelect: qs('#fontSelect'),
-  size: qs('#size'), sizeVal: qs('#sizeVal'),
-  base: qs('#base'), baseHex: qs('#baseHex'),
-  hi: qs('#hi'), hiHex: qs('#hiHex'),
-  tStroke: qs('#tStroke'), strokeOpts: qs('#strokeOpts'), strokeColor: qs('#strokeColor'),
-  strokeW: qs('#strokeW'), strokeVal: qs('#strokeVal'),
-  tShadow: qs('#tShadow'), shadowOpts: qs('#shadowOpts'), shadowColor: qs('#shadowColor'),
-  shadowBlur: qs('#shadowBlur'), shadowVal: qs('#shadowVal'),
-  tBg: qs('#tBg'), bgOpts: qs('#bgOpts'), bgColor: qs('#bgColor'),
-  bgOpacity: qs('#bgOpacity'), bgVal: qs('#bgVal'),
-  wpc: qs('#wpc'),
-  tCaps: qs('#tCaps'),
-  tWrap: qs('#tWrap'), wrapOpts: qs('#wrapOpts'), wrapWidth: qs('#wrapWidth'), wrapVal: qs('#wrapVal'),
-  letterSpacing: qs('#letterSpacing'), lsVal: qs('#lsVal'),
-  vpos: qs('#vpos'),
-  ars: qsa('.ar-btn'),
-  cv: qs('#cv'),
-  tcCur: qs('#tcCur'), tcTot: qs('#tcTot'),
-  play: qs('#play'), restart: qs('#restart'),
-  scrub: qs('#scrub'),
-  now: qs('#now'),
-  ov: qs('#ov'), barFill: qs('#barFill'), ovTxt: qs('#ovTxt'),
-  dl: qs('#dl'), dlA: qs('#dlA'), dlHint: qs('#dlHint'),
-  renderBg: qs('#renderBg'), renderHint: qs('#renderHint'), fpsSelect: qs('#fpsSelect'),
-  fmtMp4: qs('#fmtMp4'), fmtPng: qs('#fmtPng'),
-  bgSection: qs('#bgSection'), pngSection: qs('#pngSection'),
-  dlTitle: qs('#dlTitle'),
-  animMode: qs('#animMode'), animSpeed: qs('#animSpeed'), animSpeedVal: qs('#animSpeedVal'), animSpeedField: qs('#animSpeedField'),
-  fontFile: qs('#fontFile'), fontDrop: qs('#fontDrop'), fontSt: qs('#fontSt'),
-  importPreset: qs('#importPreset'), exportPreset: qs('#exportPreset'),
-  presetFile: qs('#presetFile'), presetSt: qs('#presetSt'),
-  captionEditor: qs('#captionEditor'), editorCard: qs('#editorCard'),
-  editorBadge: qs('#editorBadge'), editorStats: qs('#editorStats'),
-  editorReflow: qs('#editorReflow'), editorReset: qs('#editorReset'),
-};
-
-function setStatus(type, msg){
-  el.st.className='status ' + (type==='good'?'good':type==='warn'?'warn':'bad');
-  el.st.textContent=msg;
-  el.st.style.display='block';
-}
-function toggle(elToggle, on){
-  elToggle.classList.toggle('on', !!on);
-}
-function getToggle(elToggle){ return elToggle.classList.contains('on'); }
-
-function applyPreset(key){
-  const p = PRESETS[key];
-  S.preset = key;
-  qsa('.preset').forEach(x=>x.classList.toggle('active', x.dataset.preset===key));
-
-  el.mode.value = p.mode || 'karaoke';
-  el.fontSelect.value = p.font;
-  el.size.value = p.size; el.sizeVal.textContent = p.size;
-
-  el.base.value = p.base; el.baseHex.textContent = p.base.toUpperCase();
-  el.hi.value = p.hi; el.hiHex.textContent = p.hi.toUpperCase();
-
-  toggle(el.tStroke, p.stroke);
-  el.strokeOpts.style.display = p.stroke ? 'grid' : 'none';
-  el.strokeColor.value = p.strokeColor;
-  el.strokeW.value = p.strokeW; el.strokeVal.textContent = p.strokeW;
-
-  toggle(el.tShadow, p.shadow);
-  el.shadowOpts.style.display = p.shadow ? 'grid' : 'none';
-  el.shadowColor.value = p.shadowColor;
-  el.shadowBlur.value = p.shadowBlur; el.shadowVal.textContent = p.shadowBlur;
-
-  toggle(el.tBg, p.bg);
-  el.bgOpts.style.display = p.bg ? 'grid' : 'none';
-  el.bgColor.value = p.bgColor;
-  el.bgOpacity.value = p.bgOp; el.bgVal.textContent = p.bgOp;
-
-  if(p.wpc !== undefined){ el.wpc.value = String(p.wpc); }
-  toggle(el.tCaps, p.caps);
-  el.vpos.value = p.vpos;
-
-  // Word wrap
-  const wrapOn = p.wrapEnabled !== undefined ? p.wrapEnabled : false;
-  toggle(el.tWrap, wrapOn);
-  el.wrapOpts.style.display = wrapOn ? 'block' : 'none';
-  if(p.wrapWidth !== undefined){ el.wrapWidth.value = p.wrapWidth; el.wrapVal.textContent = p.wrapWidth; }
-
-  if(p.animMode !== undefined){ el.animMode.value = p.animMode; }
-
-  // Show/hide anim speed based on animMode
-  el.animSpeedField.style.display = (el.animMode.value === 'none' || el.animMode.value === 'fill') ? 'none' : 'block';
-
-
-  if(p.animSpeed !== undefined){ el.animSpeed.value = p.animSpeed; el.animSpeedVal.textContent = (p.animSpeed/1000).toFixed(2); }
-  if(p.letterSpacing !== undefined){ el.letterSpacing.value = p.letterSpacing; el.lsVal.textContent = p.letterSpacing; }
-  if(p.ar !== undefined && typeof setAR === 'function'){
-    setAR(p.ar);
-    qsa('.ar-btn').forEach(x=>x.classList.toggle('active', x.dataset.ar===p.ar));
-  }
-  if(p.exportFmt !== undefined && typeof setFormat === 'function'){ setFormat(p.exportFmt); }
-
-  // If manually edited, preserve grouping — only update caps display
-  if(S.manualEdit && S.words.length){
-    const caps = getToggle(el.tCaps);
-    const lines = el.captionEditor.value.split('\n');
-    let wi = 0;
-    el.captionEditor.value = lines.map(l => {
-      const count = l.trim().split(/\s+/).filter(Boolean).length;
-      const rebuilt = [];
-      for(let j = 0; j < count && wi < S.words.length; j++, wi++){
-        rebuilt.push(caps ? S.words[wi].word.toUpperCase() : S.words[wi].word);
-      }
-      return rebuilt.join(' ');
-    }).join('\n');
-    applyEditorToGroups();
-  } else {
-    regroup();
-  }
-  drawAt(S.time);
-}
-
-/* Build preset cards */
-function buildPresets(){
-  const frag=document.createDocumentFragment();
-  for(const [k,p] of Object.entries(PRESETS)){
-    const d=document.createElement('div');
-    d.className='preset'+(k==='clean'?' active':'');
-    d.dataset.preset=k;
-
-    const wordStyle = `font-family:'${p.font}',sans-serif;font-size:18px;font-weight:${p.font==='Playfair Display'?'400':'900'};`;
-    const strokeStyle = p.stroke ? `-webkit-text-stroke:${Math.min(p.strokeW*0.4,1.5)}px ${p.strokeColor};` : '';
-    const shadowStyle = p.shadow ? `text-shadow:0 0 6px ${p.shadowColor};` : '';
-    const baseStyle = `color:${p.base};${strokeStyle}`;
-    const hiStyle = `color:${p.hi};${strokeStyle}${shadowStyle}`;
-
-    let previewHtml;
-    if(p.mode==='wordbox'){
-      previewHtml = `<span style="${wordStyle}${baseStyle}">OH </span><span style="${wordStyle}color:#000;background:${p.hi};border-radius:3px;padding:0 3px;">WOW</span>`;
-    } else if(p.mode==='dim'){
-      previewHtml = `<span style="${wordStyle}color:${p.base};opacity:0.35;">OH </span><span style="${wordStyle}${baseStyle}">WOW</span>`;
-    } else if(p.mode==='solid'){
-      previewHtml = `<span style="${wordStyle}${hiStyle}">OH WOW</span>`;
-    } else if(p.mode==='ghostline'||p.mode==='twobox'){
-      const boxBg = p.bgColor + Math.round(p.bgOp*2.55).toString(16).padStart(2,'0');
-      const border = p.mode==='twobox' ? ';border:1.5px solid rgba(0,0,0,0.18)' : '';
-      previewHtml = `<span style="background:${boxBg};border-radius:5px;padding:1px 6px${border};display:inline-block;"><span style="${wordStyle}${baseStyle}">OH </span><span style="${wordStyle}color:${p.hi};">WOW</span></span>`;
-    } else if(p.bg){
-      const boxBg = p.bgColor + Math.round(p.bgOp*2.55).toString(16).padStart(2,'0');
-      previewHtml = `<span style="background:${boxBg};border-radius:5px;padding:1px 6px;display:inline-block;"><span style="${wordStyle}${baseStyle}">OH </span><span style="${wordStyle}${hiStyle}">WOW</span></span>`;
-    } else {
-      previewHtml = `<span style="${wordStyle}${baseStyle}">OH </span><span style="${wordStyle}${hiStyle}">WOW</span>`;
-    }
-
-    d.innerHTML = `
-      <div class="pname">${p.name}</div>
-      <div class="pprev">${previewHtml}</div>
-      <div class="pdesc">${p.desc}</div>
-    `;
-    d.addEventListener('click',()=>applyPreset(k));
-    frag.appendChild(d);
-  }
-  el.presets.appendChild(frag);
-}
-
-/* =========================
-   Canvas + drawing (must init before presets call drawAt)
-   ========================= */
-const DIMS = {'16:9':[1920,1080],'9:16':[1080,1920],'1:1':[1080,1080]};
-const cv = el.cv;
-const ctx = cv.getContext('2d');
-
-function setAR(ar){
-  S.ar = ar;
-  const [w,h]=DIMS[ar] || DIMS['16:9'];
-  cv.width=w; cv.height=h;
-  cv.style.width = (ar==='9:16') ? '360px' : '640px';
-  cv.style.height = 'auto';
-  drawAt(S.time);
-}
-
-/* ======= Font Dropdown (must init before applyPreset) ======= */
-const FONT_LIST = [
-  {name:'Impact', system:true},
-  {name:'Arial Black', system:true},
-  {name:'Georgia', system:true},
-  {name:'Courier New', system:true},
-  {name:'Verdana', system:true},
-  {name:'Trebuchet MS', system:true},
-  {name:'Anton'},{name:'Bangers'},{name:'Bebas Neue'},{name:'Black Ops One'},
-  {name:'Bowlby One SC'},{name:'Bungee'},{name:'Cabin'},{name:'Chakra Petch'},
-  {name:'Concert One'},{name:'Dela Gothic One'},{name:'DM Sans'},{name:'Fredoka One'},
-  {name:'Fugaz One'},{name:'Graduate'},{name:'Kanit'},{name:'Luckiest Guy'},
-  {name:'Montserrat'},{name:'Oswald'},{name:'Passion One'},{name:'Permanent Marker'},
-  {name:'Playfair Display'},{name:'Poppins'},{name:'Press Start 2P'},{name:'Raleway'},
-  {name:'Righteous'},{name:'Roboto'},{name:'Roboto Condensed'},{name:'Rubik'},
-  {name:'Russo One'},{name:'Secular One'},{name:'Sigmar One'},{name:'Teko'},
-  {name:'Titan One'},{name:'Ultra'},{name:'Unbounded'},{name:'Urbanist'},
-  {name:'Yanone Kaffeesatz'},
-];
-const googleFonts = FONT_LIST.filter(f=>!f.system).map(f=>f.name);
-const glink = document.createElement('link');
-glink.rel='stylesheet';
-glink.href='https://fonts.googleapis.com/css2?'+googleFonts.map(f=>'family='+encodeURIComponent(f)+':wght@400;700;900').join('&')+'&display=swap';
-document.head.appendChild(glink);
-(function buildFontSelect(){
-  let html='<optgroup label="System Fonts">';
-  FONT_LIST.filter(f=>f.system).forEach(f=>{ html+=`<option value="${f.name}" style="font-family:'${f.name}',sans-serif">${f.name}</option>`; });
-  html+='</optgroup><optgroup label="Google Fonts">';
-  FONT_LIST.filter(f=>!f.system).forEach(f=>{ html+=`<option value="${f.name}" style="font-family:'${f.name}',sans-serif">${f.name}</option>`; });
-  html+='</optgroup>';
-  el.fontSelect.innerHTML=html;
-  el.fontSelect.value='Impact';
-})();
-document.fonts.ready.then(()=> drawAt(S.time));
-
-buildPresets();
-applyPreset('clean');
-// Sync animSpeed field visibility after initial preset
-el.animSpeedField.style.display = (el.animMode.value === 'none' || el.animMode.value === 'fill') ? 'none' : 'block';
-
-/* File drop/browse */
-function handleSrtFile(file){
-  if(!file) return;
-  if(!file.name.toLowerCase().endsWith('.srt')){
-    setStatus('bad','Please select a .srt file');
-    return;
-  }
-  const r=new FileReader();
-  r.onload=()=>{
-    try{
-      const txt=String(r.result||'');
-      const entries=parseSRT(txt);
-      if(!entries.length){ setStatus('bad','No captions found in SRT'); return; }
-      S.entries=entries;
-      S.words=splitWords(entries);
-      S.duration = entries[entries.length-1].end;
-      S.filename = file.name.replace(/\\.srt$/i,'');
-      el.tcTot.textContent = fmtTC(S.duration);
-      // Warn if 4+ words per cue — likely not exported per-word from Premiere
-      const longCues = entries.filter(e => e.text.trim().split(/\s+/).length >= 4);
-      if(longCues.length > 0){
-        const pct = Math.round((longCues.length / entries.length) * 100);
-        setStatus('warn',
-          '⚠︎ ' + longCues.length + ' of ' + entries.length + ' cues have 4+ words (' + pct + '%) — '
-          + 'timing may be uneven. Re-export from Premiere with Max length: 7 chars for best results.'
-        );
-      } else {
-        setStatus('good', '✓ Loaded ' + entries.length + ' cues · ' + S.words.length + ' words · ' + fmtTC(S.duration));
-      }
-      el.render.disabled = false;
-      S.manualEdit = false;
-      el.editorCard.style.display = 'block';
-      regroup();
-      drawAt(0);
-      el.now.textContent = 'Ready to preview';
-    }catch(e){
-      console.error(e);
-      setStatus('bad','Failed to parse SRT');
-    }
-  };
-  r.onerror=()=>setStatus('bad','Failed to read file');
-  r.readAsText(file);
-}
-
-el.drop.addEventListener('click',()=>el.file.click());
-el.file.addEventListener('change',(e)=>{
-  const f=e.target.files && e.target.files[0];
-  handleSrtFile(f);
-  el.file.value=''; // allow reselect same file
-});
-['dragenter','dragover'].forEach(evt=>el.drop.addEventListener(evt,(e)=>{e.preventDefault();e.stopPropagation();el.drop.classList.add('drag');}));
-['dragleave','drop'].forEach(evt=>el.drop.addEventListener(evt,(e)=>{e.preventDefault();e.stopPropagation();el.drop.classList.remove('drag');}));
-el.drop.addEventListener('drop',(e)=>{const f=e.dataTransfer.files && e.dataTransfer.files[0];handleSrtFile(f);});
-
-/* Control bindings */
-function updateHex(){
-  el.baseHex.textContent = el.base.value.toUpperCase();
-  el.hiHex.textContent = el.hi.value.toUpperCase();
-}
-updateHex();
-
-el.mode.addEventListener('change',()=>drawAt(S.time));
-el.fontSelect.addEventListener('change',()=> drawAt(S.time));
-el.size.addEventListener('input',()=>{el.sizeVal.textContent=el.size.value; drawAt(S.time);});
-el.base.addEventListener('input',()=>{updateHex(); drawAt(S.time);});
-el.hi.addEventListener('input',()=>{updateHex(); drawAt(S.time);});
-
-el.tStroke.addEventListener('click',()=>{
-  toggle(el.tStroke, !getToggle(el.tStroke));
-  el.strokeOpts.style.display = getToggle(el.tStroke) ? 'grid' : 'none';
-  drawAt(S.time);
-});
-el.strokeColor.addEventListener('input',()=>drawAt(S.time));
-el.strokeW.addEventListener('input',()=>{el.strokeVal.textContent=el.strokeW.value; drawAt(S.time);});
-
-el.tShadow.addEventListener('click',()=>{
-  toggle(el.tShadow, !getToggle(el.tShadow));
-  el.shadowOpts.style.display = getToggle(el.tShadow) ? 'grid' : 'none';
-  drawAt(S.time);
-});
-el.shadowColor.addEventListener('input',()=>drawAt(S.time));
-el.shadowBlur.addEventListener('input',()=>{el.shadowVal.textContent=el.shadowBlur.value; drawAt(S.time);});
-
-el.tBg.addEventListener('click',()=>{
-  toggle(el.tBg, !getToggle(el.tBg));
-  el.bgOpts.style.display = getToggle(el.tBg) ? 'grid' : 'none';
-  drawAt(S.time);
-});
-el.bgColor.addEventListener('input',()=>drawAt(S.time));
-el.bgOpacity.addEventListener('input',()=>{el.bgVal.textContent=el.bgOpacity.value; drawAt(S.time);});
-
-el.wpc.addEventListener('change',()=>{S.manualEdit = false; regroup(); drawAt(S.time);});
-el.tCaps.addEventListener('click',()=>{
-  toggle(el.tCaps, !getToggle(el.tCaps));
-  if(S.manualEdit && S.words.length){
-    // Update editor text case but preserve line breaks
-    const caps = getToggle(el.tCaps);
-    const lines = el.captionEditor.value.split('\n');
-    let wi2 = 0;
-    el.captionEditor.value = lines.map(l => {
-      const count = l.trim().split(/\s+/).filter(Boolean).length;
-      const rebuilt = [];
-      for(let j = 0; j < count && wi2 < S.words.length; j++, wi2++){
-        rebuilt.push(caps ? S.words[wi2].word.toUpperCase() : S.words[wi2].word);
-      }
-      return rebuilt.join(' ');
-    }).join('\n');
-    applyEditorToGroups();
-  } else {
-    regroup();
-  }
-  drawAt(S.time);
-});
-el.tWrap.addEventListener('click',()=>{
-  toggle(el.tWrap, !getToggle(el.tWrap));
-  el.wrapOpts.style.display = getToggle(el.tWrap) ? 'block' : 'none';
-  drawAt(S.time);
-});
-el.wrapWidth.addEventListener('input',()=>{ el.wrapVal.textContent=el.wrapWidth.value; drawAt(S.time); });
-el.letterSpacing.addEventListener('input',()=>{ el.lsVal.textContent=el.letterSpacing.value; drawAt(S.time); });
-el.vpos.addEventListener('change',()=>drawAt(S.time));
-
-el.ars.forEach(b=>{
-  b.addEventListener('click',()=>{
-    el.ars.forEach(x=>x.classList.toggle('active', x===b));
-    setAR(b.dataset.ar);
-  });
-});
-
-el.renderBg.addEventListener('change',()=>{
-  const v = el.renderBg.value;
-  if(v==='green')
-    el.renderHint.innerHTML = 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green. Keeps dark strokes &amp; shadows!';
-  else if(v==='blue')
-    el.renderHint.innerHTML = 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the blue. Best for green/cyan text!';
-  else
-    el.renderHint.innerHTML = 'In Premiere: place above footage → Opacity → Blend Mode → <b>Screen</b>. Note: black strokes will be invisible.';
-  drawAt(S.time);
-});
-
-// Format toggle: MP4 vs PNG Sequence
-function setFormat(fmt){
-  S.exportFmt = fmt;
-  el.fmtMp4.classList.toggle('active', fmt==='mp4');
-  el.fmtPng.classList.toggle('active', fmt==='png');
-  el.bgSection.style.display  = fmt==='mp4' ? 'block' : 'none';
-  el.pngSection.style.display = fmt==='png' ? 'block' : 'none';
-  el.render.textContent = fmt==='png' ? 'EXPORT PNG ZIP' : 'RENDER MP4';
-}
-el.fmtMp4.addEventListener('click', ()=> setFormat('mp4'));
-el.fmtPng.addEventListener('click', ()=> setFormat('png'));
-S.exportFmt = 'mp4';
-
-el.animMode.addEventListener('change',()=>{
-  el.animSpeedField.style.display = (el.animMode.value === 'none' || el.animMode.value === 'fill') ? 'none' : 'block';
-  previewAnim();
-});
-el.animSpeed.addEventListener('input',()=>{
-  const v = (+el.animSpeed.value/1000).toFixed(2);
-  el.animSpeedVal.textContent = v;
-  previewAnim();
-});
-
-/* When an animation setting changes, play a quick preview from the
-   start of the current cue so you can actually see the entry anim.
-   Restores the original playhead position when done. */
-let _previewRaf = 0;
-let _previewRestore = null;
-function previewAnim(){
-  if(!S.groups.length){ drawAt(S.time); return; }
-  // If already playing normally, just let it continue
-  if(S.playing){ drawAt(S.time); return; }
-
-  const g = getActiveGroup(S.time) || findNearestGroup(S.time);
-  if(!g){ drawAt(S.time); return; }
-
-  // Cancel any in-progress preview
-  if(_previewRaf){ cancelAnimationFrame(_previewRaf); _previewRaf = 0; }
-
-  const savedTime = _previewRestore !== null ? _previewRestore : S.time;
-  _previewRestore = savedTime;
-  const startT = g.start;
-  const endT   = g.end;
-  let first = 0;
-
-  function step(ts){
-    if(S.playing){ _previewRestore = null; _previewRaf = 0; return; }
-    if(!first) first = ts;
-    const elapsed = (ts - first) / 1000;
-    const t = startT + elapsed;
-    if(t >= endT){
-      // Preview done, snap back to original position
-      drawAt(savedTime);
-      el.scrub.value = S.duration ? Math.floor((savedTime/S.duration)*1000) : 0;
-      _previewRestore = null;
-      _previewRaf = 0;
-      return;
-    }
-    drawAt(t);
-    el.scrub.value = S.duration ? Math.floor((t/S.duration)*1000) : 0;
-    _previewRaf = requestAnimationFrame(step);
-  }
-
-  drawAt(startT);
-  _previewRaf = requestAnimationFrame(step);
-}
-function findNearestGroup(t){
-  let best=null, dist=Infinity;
-  for(const g of S.groups){
-    const d = Math.min(Math.abs(t-g.start), Math.abs(t-g.end));
-    if(d<dist){ dist=d; best=g; }
-  }
-  return best;
-}
-
-/* =========================
-   Custom Font Upload
-   ========================= */
-const customFonts = new Map();
-
-function setFontStatus(type, msg){
-  el.fontSt.className = 'status ' + (type==='good' ? 'good' : 'bad');
-  el.fontSt.textContent = msg;
-  el.fontSt.style.display = 'block';
-}
-
-// Shared helper: register a font from ArrayBuffer, add to dropdown if new
-async function registerCustomFont(fontName, buf, ext){
-  const ff = new FontFace(fontName, buf);
-  await ff.load();
-  document.fonts.add(ff);
-  if(!customFonts.has(fontName)){
-    customFonts.set(fontName, { buf, ext });
-    let group = el.fontSelect.querySelector('optgroup[label="Custom Fonts"]');
-    if(!group){
-      group = document.createElement('optgroup');
-      group.label = 'Custom Fonts';
-      el.fontSelect.insertBefore(group, el.fontSelect.firstChild);
-    }
-    const opt = document.createElement('option');
-    opt.value = fontName;
-    opt.textContent = '\u2605 ' + fontName;
-    group.appendChild(opt);
-  }
-}
-
-async function handleFontFile(file){
-  if(!file) return;
-  const ext = file.name.split('.').pop().toLowerCase();
-  if(!['ttf','otf','woff','woff2'].includes(ext)){
-    setFontStatus('bad', 'Unsupported format \u2014 use .ttf, .otf, .woff, or .woff2');
-    return;
-  }
-  const fontName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
-  try {
-    const buf = await file.arrayBuffer();
-    await registerCustomFont(fontName, buf, ext);
-    el.fontSelect.value = fontName;
-    setFontStatus('good', '\u2713 "' + fontName + '" loaded \u2014 selected!');
-    drawAt(S.time);
-  } catch(e){
-    console.error(e);
-    setFontStatus('bad', 'Failed to load font: ' + e.message);
-  }
-}
-
-el.fontDrop.addEventListener('click', ()=> el.fontFile.click());
-el.fontFile.addEventListener('change', (e)=>{
-  handleFontFile(e.target.files && e.target.files[0]);
-  el.fontFile.value = '';
-});
-['dragenter','dragover'].forEach(evt=> el.fontDrop.addEventListener(evt,(e)=>{ e.preventDefault(); e.stopPropagation(); el.fontDrop.classList.add('drag'); }));
-['dragleave','drop'].forEach(evt=> el.fontDrop.addEventListener(evt,(e)=>{ e.preventDefault(); e.stopPropagation(); el.fontDrop.classList.remove('drag'); }));
-el.fontDrop.addEventListener('drop',(e)=>{ handleFontFile(e.dataTransfer.files && e.dataTransfer.files[0]); });
-
-/* =========================
-   Preset Export / Import
-   ========================= */
-function setPresetStatus(type, msg){
-  el.presetSt.className = 'status ' + (type==='good'?'good':type==='warn'?'warn':'bad');
-  el.presetSt.textContent = msg;
-  el.presetSt.style.display = 'block';
-  setTimeout(()=>{ el.presetSt.style.display='none'; }, 4000);
-}
-
-function captureCurrentSettings(){
-  return {
-    _wordpunch: true,
-    name: 'Custom',
-    mode: el.mode.value,
-    animMode: el.animMode.value,
-    animSpeed: +el.animSpeed.value,
-    font: el.fontSelect.value,
-    size: +el.size.value,
-    base: el.base.value,
-    hi: el.hi.value,
-    stroke: getToggle(el.tStroke),
-    strokeColor: el.strokeColor.value,
-    strokeW: +el.strokeW.value,
-    shadow: getToggle(el.tShadow),
-    shadowColor: el.shadowColor.value,
-    shadowBlur: +el.shadowBlur.value,
-    bg: getToggle(el.tBg),
-    bgColor: el.bgColor.value,
-    bgOp: +el.bgOpacity.value,
-    caps: getToggle(el.tCaps),
-    wpc: +el.wpc.value,
-    letterSpacing: +el.letterSpacing.value,
-    vpos: el.vpos.value,
-    wrapEnabled: getToggle(el.tWrap),
-    wrapWidth: +el.wrapWidth.value,
-    ar: S.ar,
-    exportFmt: S.exportFmt || 'mp4',
-  };
-}
-
-// Async — bundles custom font bytes into preset JSON if a custom font is active
-async function captureCurrentSettingsWithFont(){
-  const data = captureCurrentSettings();
-  const fontName = el.fontSelect.value;
-  if(customFonts.has(fontName)){
-    const { buf, ext } = customFonts.get(fontName);
-    const bytes = new Uint8Array(buf);
-    let binary = '';
-    for(let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    data.customFont = { name: fontName, ext, data: btoa(binary) };
-  }
-  return data;
-}
-
-function applySettingsObject(p){
-  PRESETS['__imported__'] = p;
-  applyPreset('__imported__');
-  delete PRESETS['__imported__'];
-  qsa('.preset').forEach(x=>x.classList.remove('active'));
-
-  // Restore manual caption grouping if present and word count matches
-  if(p._captionGroups && Array.isArray(p._captionGroups) && S.words.length){
-    const editorWords = p._captionGroups.flatMap(l => l.trim().split(/\s+/).filter(Boolean));
-    if(editorWords.length === S.words.length){
-      S.manualEdit = true;
-      setEditorBadge(true);
-      el.captionEditor.value = p._captionGroups.join('\n');
-      applyEditorToGroups();
-    }
-  }
-}
-
-el.exportPreset.addEventListener('click', async ()=>{
-  const name = prompt('Name this preset:', 'My Preset');
-  if(name === null) return;
-  const data = await captureCurrentSettingsWithFont();
-  data.name = name.trim() || 'My Preset';
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = data.name.replace(/[^a-z0-9]/gi,'_').toLowerCase() + '_preset.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-});
-
-el.importPreset.addEventListener('click', ()=> el.presetFile.click());
-el.presetFile.addEventListener('change', (e)=>{
-  const file = e.target.files && e.target.files[0];
-  el.presetFile.value = '';
-  if(!file) return;
-  const r = new FileReader();
-  r.onload = async ()=>{
-    try {
-      const p = JSON.parse(r.result);
-      if(!p._wordpunch) throw new Error('Not a WordPunch preset file');
-      if(p.customFont){
-        const binary = atob(p.customFont.data);
-        const bytes = new Uint8Array(binary.length);
-        for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        await registerCustomFont(p.customFont.name, bytes.buffer, p.customFont.ext);
-        p.font = p.customFont.name;
-      }
-      applySettingsObject(p);
-      const fontNote = p.customFont ? ' (font bundled \u2705)' : '';
-      setPresetStatus('good', '\u2713 "' + (p.name||'Preset') + '" applied' + fontNote);
-    } catch(err) {
-      setPresetStatus('bad', 'Invalid preset: ' + err.message);
-    }
-  };
-  r.readAsText(file);
-});
-
-/* =========================
-   Auto-download preset on export
-   ========================= */
-function autoDownloadPreset(exportType){
-  const data = captureCurrentSettings();
-  data.name = (S.filename || 'wordpunch') + ' — export settings';
-  data._exportedAs = exportType; // 'mp4' or 'png'
-  data._exportedAt = new Date().toISOString();
-  data._sourceFile = S.filename || 'unknown';
-  if(exportType === 'mp4'){
-    data._renderBg = el.renderBg.value;
-  }
-  // Save caption grouping if manually edited
-  if(S.manualEdit && el.captionEditor.value.trim()){
-    data._captionGroups = el.captionEditor.value.split('\n').filter(l => l.trim());
-  }
-  // Flag custom font usage (font bytes not bundled — use Save Preset for that)
-  const fontName = el.fontSelect.value;
-  if(customFonts.has(fontName)){
-    data._customFontUsed = fontName;
-    data._note = 'Custom font was used but not bundled in this auto-save. Use Save Preset to bundle the font file.';
-  }
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (S.filename || 'wordpunch') + '_settings.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-/* =========================
-   Drawing functions
-   ========================= */
-
-function currentFont(){
-  return el.fontSelect.value || 'Impact';
-}
-
-/* =========================
-   Superscript helpers
-   Syntax: wrap chars in ^ — e.g. "1^st^" or "®^"
-   Single trailing ^x  → just x is super  (no closing ^)
-   ^text^              → text is super
-   ========================= */
-function parseSuper(word){
-  // Returns [{text, isSuper}, ...]
-  const segs = [];
-  let i = 0;
-  while(i < word.length){
-    if(word[i] === '^'){
-      // Opening ^
-      i++;
-      // Find closing ^
-      const close = word.indexOf('^', i);
-      if(close === -1){
-        // No closing ^ — treat rest as superscript
-        segs.push({text: word.slice(i), isSuper: true});
-        i = word.length;
-      } else {
-        segs.push({text: word.slice(i, close), isSuper: true});
-        i = close + 1;
-      }
-    } else {
-      // Normal text until next ^
-      const next = word.indexOf('^', i);
-      if(next === -1){
-        segs.push({text: word.slice(i), isSuper: false});
-        i = word.length;
-      } else {
-        segs.push({text: word.slice(i, next), isSuper: false});
-        i = next;
-      }
-    }
-  }
-  return segs.filter(s => s.text.length > 0);
-}
-
-function hasSuper(word){ return word.includes('^'); }
-
-/* Measure a word that may contain superscript segments */
-function measureWordWithSuper(word, fontSize, fontName){
-  const segs = parseSuper(word);
-  let total = 0;
-  const superFontSize = Math.round(fontSize * 0.6);
-  for(const seg of segs){
-    if(seg.isSuper){
-      ctx.save();
-      ctx.font = `900 ${superFontSize}px ${fontName}, sans-serif`;
-      total += ctx.measureText(seg.text).width;
-      ctx.restore();
-    } else {
-      total += ctx.measureText(seg.text).width;
-    }
-  }
-  return total;
-}
-
-/* Wrap a words array into lines given a max pixel width */
-function wrapWordsToLines(wordObjs, maxPixW, measureFn){
-  measureFn = measureFn || ((s)=>ctx.measureText(s).width);
-  const lines = [];
-  let curLine = [], curW = 0;
-  for(const wrd of wordObjs){
-    const ww = measureFn(wrd.word) + measureFn(' ');
-    if(curW + ww > maxPixW && curLine.length){
-      lines.push(curLine);
-      curLine = [wrd];
-      curW = measureFn(wrd.word) + measureFn(' ');
-    } else {
-      curLine.push(wrd);
-      curW += ww;
-    }
-  }
-  if(curLine.length) lines.push(curLine);
-  return lines;
-}
-
-function yFromPos(){
-  const h=cv.height;
-  const v = el.vpos.value;
-  if(v==='top') return Math.round(h*0.30);
-  if(v==='bottom') return Math.round(h*0.82);
-  return Math.round(h*0.52);
-}
-
-function roundRect(ctx,x,y,w,h,r){
-  const rr=Math.min(r, w/2, h/2);
-  ctx.beginPath();
-  ctx.moveTo(x+rr,y);
-  ctx.arcTo(x+w,y,x+w,y+h,rr);
-  ctx.arcTo(x+w,y+h,x,y+h,rr);
-  ctx.arcTo(x,y+h,x,y,rr);
-  ctx.arcTo(x,y,x+w,y,rr);
-  ctx.closePath();
-}
-
-function getActiveGroup(t){
-  for(const g of S.groups){
-    if(t>=g.start && t<g.end) return g;
-  }
-  return null;
-}
-function drawAt(t){
-  S.time = Math.max(0, Math.min(S.duration||0, t));
-  el.tcCur.textContent = fmtTC(S.time);
-  ctx.clearRect(0,0,cv.width,cv.height);
-  const bgMode = el.renderBg.value;
-  const isPng = S.exportFmt === 'png';
-  if(isPng && S.rendering){
-    // True transparent background for PNG sequence
-    ctx.clearRect(0,0,cv.width,cv.height);
-  } else if(S.rendering){
-    ctx.fillStyle = bgMode==='green' ? '#00FF00' : bgMode==='blue' ? '#0000FF' : '#000000';
-    ctx.fillRect(0,0,cv.width,cv.height);
-  } else {
-    ctx.fillStyle = bgMode==='green' ? '#1a3a1a' : bgMode==='blue' ? '#0a0a2a' : '#222222';
-    ctx.fillRect(0,0,cv.width,cv.height);
-  }
-
-  if(!S.groups.length){
-    ctx.fillStyle='#fff';
-    ctx.font='700 34px '+currentFont()+', sans-serif';
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    ctx.fillText('DROP AN SRT', cv.width/2, cv.height/2);
-    return;
-  }
-
-  const g = getActiveGroup(S.time);
-  if(!g){ el.now.textContent='…'; return; }
-
-  const caps = getToggle(el.tCaps);
-  const mode = el.mode.value;
-  const animMode = el.animMode.value;
-  const animSpeedMs = +el.animSpeed.value / 1000; // seconds per word
-  const base = el.base.value;
-  const hi = el.hi.value;
-  const words = (caps ? g.wt.map(w=>({...w, word:w.word.toUpperCase()})) : g.wt);
-  const text = words.map(w=>w.word).join(' ');
-
-  const y = yFromPos();
-  const fontSize = +el.size.value;
-  const fontName = currentFont();
-  ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
-  ctx.textAlign='center';
-  ctx.textBaseline='alphabetic';
-  // Letter spacing (modern canvas API)
-  const ls = +el.letterSpacing.value;
-  if('letterSpacing' in ctx) ctx.letterSpacing = ls + 'px';
-
-  const wrapOn = getToggle(el.tWrap);
-  const wrapMaxW = cv.width * (+el.wrapWidth.value / 100);
-
-  const measureText = (str)=>hasSuper(str) ? measureWordWithSuper(str, fontSize, fontName) : ctx.measureText(str).width;
-  const padX = Math.round(fontSize*0.55);
-  const padY = Math.round(fontSize*0.35);
-  const boxRadius = Math.round(fontSize*0.35);
-  const doStroke = getToggle(el.tStroke) && (+el.strokeW.value>0);
-
-  // Determine active word index for karaoke
-  let activeIdx = 0;
-  for(let i=0;i<words.length;i++){
-    if(S.time>=words[i].start && S.time<words[i].end){ activeIdx=i; break; }
-    if(S.time>=words[i].end) activeIdx=i;
-  }
-
-  // ============================================================
-  //  CAPTION STYLE — determines word colors / decoration
-  //  WORD ENTRY    — determines when/how each word appears
-  //  These are fully independent and compose freely.
-  // ============================================================
-
-  // ---- helpers ----
-  function hexToRgb(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
-  function drawWord(word, wx, wy, fillColor, alpha=1, sx=1, sy=1, oy=0){
-    ctx.save();
-    ctx.globalAlpha = alpha;
-
-    if(!hasSuper(word)){
-      // Fast path — no superscript
-      if(sx!==1||sy!==1||oy!==0){
-        ctx.translate(wx + measureText(word)/2, wy + oy);
-        ctx.scale(sx, sy);
-        ctx.translate(-(wx + measureText(word)/2), -(wy + oy));
-      }
-      if(getToggle(el.tShadow)){
-        ctx.shadowColor = el.shadowColor.value;
-        ctx.shadowBlur  = +el.shadowBlur.value;
-        ctx.shadowOffsetX = Math.round(fontSize*0.05);
-        ctx.shadowOffsetY = Math.round(fontSize*0.05);
-      }
-      if(doStroke){
-        ctx.strokeStyle = el.strokeColor.value;
-        ctx.lineWidth   = +el.strokeW.value;
-        ctx.lineJoin    = 'round';
-        ctx.strokeText(word, wx, wy);
-      }
-      ctx.fillStyle = fillColor;
-      ctx.fillText(word, wx, wy);
-    } else {
-      // Superscript path — draw segment by segment
-      const segs = parseSuper(word);
-      const superFontSize = Math.round(fontSize * 0.6);
-      const superRise     = Math.round(fontSize * 0.55);
-      const totalW        = measureWordWithSuper(word, fontSize, fontName);
-
-      if(sx!==1||sy!==1||oy!==0){
-        ctx.translate(wx + totalW/2, wy + oy);
-        ctx.scale(sx, sy);
-        ctx.translate(-(wx + totalW/2), -(wy + oy));
-      }
-
-      let cx2 = wx;
-      for(const seg of segs){
-        if(seg.isSuper){
-          ctx.font = `900 ${superFontSize}px ${fontName}, sans-serif`;
-          const segW = ctx.measureText(seg.text).width;
-          const segY = wy - superRise;
-          if(getToggle(el.tShadow)){
-            ctx.shadowColor = el.shadowColor.value;
-            ctx.shadowBlur  = +el.shadowBlur.value * 0.7;
-            ctx.shadowOffsetX = Math.round(superFontSize*0.05);
-            ctx.shadowOffsetY = Math.round(superFontSize*0.05);
-          }
-          if(doStroke){
-            ctx.strokeStyle = el.strokeColor.value;
-            ctx.lineWidth   = Math.max(1, +el.strokeW.value * 0.6);
-            ctx.lineJoin    = 'round';
-            ctx.strokeText(seg.text, cx2, segY);
-          }
-          ctx.fillStyle = fillColor;
-          ctx.fillText(seg.text, cx2, segY);
-          cx2 += segW;
-          ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
-        } else {
-          const segW = ctx.measureText(seg.text).width;
-          if(getToggle(el.tShadow)){
-            ctx.shadowColor = el.shadowColor.value;
-            ctx.shadowBlur  = +el.shadowBlur.value;
-            ctx.shadowOffsetX = Math.round(fontSize*0.05);
-            ctx.shadowOffsetY = Math.round(fontSize*0.05);
-          }
-          if(doStroke){
-            ctx.strokeStyle = el.strokeColor.value;
-            ctx.lineWidth   = +el.strokeW.value;
-            ctx.lineJoin    = 'round';
-            ctx.strokeText(seg.text, cx2, wy);
-          }
-          ctx.fillStyle = fillColor;
-          ctx.fillText(seg.text, cx2, wy);
-          cx2 += segW;
-        }
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur  = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-      }
-    }
-    ctx.restore();
-  }
-
-  // ---- word entry: compute per-word alpha / scale / offset ----
-  function wordEntryTransform(wordIndex, totalWords){
-    if(animMode === 'none') return {alpha:1, sx:1, sy:1, oy:0, skip:false};
-    if(animMode === 'fill') return {alpha:1, sx:1, sy:1, oy:0, skip:false}; // handled separately
-    const groupDur = Math.max(0.01, g.end - g.start);
-    const elapsed  = S.time - g.start;
-    // Cap speed so all words can appear within 80% of group duration
-    const maxSpd = totalWords > 1 ? (groupDur * 0.8) / totalWords : animSpeedMs;
-    const spd = Math.min(animSpeedMs, maxSpd);
-
-    if(animMode === 'letters') return {alpha:1, sx:1, sy:1, oy:0, skip:false}; // handled separately
-
-    const appearTime = wordIndex * spd;
-    const wordDone   = elapsed - appearTime;
-    if(wordDone < 0) return {alpha:0, sx:1, sy:1, oy:0, skip:true};
-
-    const animDur = spd * 0.8;
-    const p = animDur > 0 ? Math.min(1, wordDone / animDur) : 1;
-    const easeOut  = 1 - Math.pow(1-p, 3);
-    const easeBack = p < 0.5 ? p/0.5 * 1.15 : 1 + 0.15*(1-(p-0.5)/0.5);
-
-    if(animMode==='typewriter') return {alpha:1, sx:1, sy:1, oy:0, skip:false};
-    if(animMode==='slam'){
-      const s = 2 - easeOut;
-      return {alpha:Math.min(1,p*3), sx:Math.max(0.1,s), sy:Math.max(0.1,s), oy:0, skip:false};
-    }
-    if(animMode==='fadeup')  return {alpha:easeOut, sx:1, sy:1, oy:(1-easeOut)*fontSize*0.5, skip:false};
-    if(animMode==='scale'){
-      const s = easeBack;
-      return {alpha:Math.min(1,p*2), sx:Math.max(0.01,s), sy:Math.max(0.01,s), oy:0, skip:false};
-    }
-    if(animMode==='bounce')  return {alpha:Math.min(1,p*2), sx:1, sy:1, oy:-(1-easeOut)*fontSize*1.5, skip:false};
-    return {alpha:1, sx:1, sy:1, oy:0, skip:false};
-  }
-
-  // ---- letter entry (used by 'letters' animMode) ----
-  function drawWordsLetterReveal(wordList, startX, baseY, colorFn){
-    const groupDur = Math.max(0.01, g.end - g.start);
-    const elapsed  = S.time - g.start;
-    const allCount = wordList.reduce((a,w)=>a+w.word.length, 0);
-    const spd = groupDur / Math.max(allCount, 1);
-    let lx = startX;
-    let letterIdx = 0;
-    ctx.textAlign = 'left';
-    for(let wi=0; wi<wordList.length; wi++){
-      const wrd = wordList[wi];
-      for(let ci=0; ci<wrd.word.length; ci++){
-        const ch = wrd.word[ci];
-        const revealed = elapsed >= letterIdx * spd;
-        const color = colorFn(wi, wrd);
-        if(revealed) drawWord(ch, lx, baseY, color);
-        lx += measureText(ch);
-        letterIdx++;
-      }
-      lx += measureText(' ');
-    }
-  }
-
-  // ---- layout helpers ----
-  function layoutSingleLine(wordList){
-    // returns [{word, x}] centered on canvas
-    const full = wordList.map(w=>w.word).join(' ');
-    let sx = cv.width/2 - measureText(full)/2;
-    return wordList.map((w,i)=>{
-      const x = sx;
-      sx += measureText(w.word + (i<wordList.length-1?' ':''));
-      return {w, x};
-    });
-  }
-  function layoutWrappedLines(wordList, maxW){
-    const lines = wrapWordsToLines(wordList, maxW, measureText);
-    const lineH = fontSize * 1.28;
-    const totalH = lines.length * lineH;
-    const startY = yFromPos() - totalH/2 + fontSize;
-    const items = [];
-    for(let li=0; li<lines.length; li++){
-      const lw = measureText(lines[li].map(w=>w.word).join(' '));
-      let lx = cv.width/2 - lw/2;
-      const ly = startY + li * lineH;
-      for(let wi=0; wi<lines[li].length; wi++){
-        const w = lines[li][wi];
-        items.push({w, x:lx, y:ly});
-        lx += measureText(w.word + (wi<lines[li].length-1?' ':''));
-      }
-    }
-    return items;
-  }
-
-  // ---- draw bg box util ----
-  function drawBgBox(bx, by, bw, bh, radius){
-    const [r,gv,b] = hexToRgb(el.bgColor.value);
-    const op = +el.bgOpacity.value / 100;
-    ctx.save();
-    ctx.fillStyle = `rgba(${r},${gv},${b},${op})`;
-    roundRect(ctx, bx, by, bw, bh, radius);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // ==== GHOSTLINE style — special layout, own draw path ====
-  if(mode === 'ghostline'){
-    const gIdx2 = S.groups.indexOf(g);
-    const nextG  = gIdx2 < S.groups.length-1 ? S.groups[gIdx2+1] : null;
-    const boxPadX = fontSize*0.7, boxPadY = fontSize*0.55;
-    const maxLW = cv.width * 0.82;
-    const lines3 = wrapWordsToLines(words, maxLW, measureText);
-    const lineH3  = fontSize * 1.3;
-    const ghostSz = fontSize * 0.85;
-    const hasGhost = !!nextG;
-    const mainH       = boxPadY + fontSize + (lines3.length - 1) * lineH3;
-    const ghostOffset = hasGhost ? lineH3 * 0.5 + ghostSz : 0;
-    const totalBH     = mainH + ghostOffset + boxPadY * 0.9;
-    const maxTW = Math.max(...lines3.map(l=>measureText(l.map(w=>w.word).join(" "))));
-    let ghostTW = 0;
-    if(nextG){
-      ctx.save();
-      ctx.font = `900 ${ghostSz}px "${fontName}", sans-serif`;
-      const _gt = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
-      ghostTW = ctx.measureText(_gt).width;
-      ctx.restore();
-      ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
-    }
-    const totalBW = Math.min(cv.width*0.92, Math.max(maxTW, ghostTW) + boxPadX*2);
-    const bx = (cv.width-totalBW)/2;
-    const by = yFromPos() - totalBH/2;
-    drawBgBox(bx, by, totalBW, totalBH, fontSize*0.45);
-    const groupDur  = Math.max(0.01, g.end - g.start);
-    const elapsed   = S.time - g.start;
-    const TRANS_DUR = Math.min(0.25, groupDur * 0.25);
-    const transRaw  = Math.max(0, (elapsed - (groupDur - TRANS_DUR)) / TRANS_DUR);
-    const transP    = Math.min(1, transRaw);
-    const transEase = transP < 0.5 ? 2*transP*transP : -1+(4-2*transP)*transP;
-    ctx.textAlign = "left";
-    const tsy = by + boxPadY + fontSize;
-    const mainSlide = transEase * lineH3 * 0.6;
-    const mainAlpha = 1 - transEase * 0.9;
-    for(let li=0; li<lines3.length; li++){
-      let lx = bx + boxPadX;
-      const ly = tsy + li * lineH3 - mainSlide;
-      for(let wi=0; wi<lines3[li].length; wi++){
-        const wrd = lines3[li][wi];
-        const wordIdx = words.indexOf(wrd);
-        const tr = wordEntryTransform(wordIdx, words.length);
-        if(tr.skip){ lx += measureText(wrd.word + " "); continue; }
-        drawWord(wrd.word, lx, ly - tr.oy, base, mainAlpha * tr.alpha, tr.sx, tr.sy, 0);
-        lx += measureText(wrd.word + " ");
-      }
-    }
-    if(nextG){
-      const ghostTxt   = getToggle(el.tCaps) ? nextG.text.toUpperCase() : nextG.text;
-      const ghostBaseY = by + mainH + ghostOffset;
-      const ghostCurY  = ghostBaseY - transEase * (ghostBaseY - tsy);
-      const ghostAlpha = 0.28 + transEase * 0.72;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(bx, by - fontSize, totalBW, totalBH + fontSize * 1.5);
-      ctx.clip();
-      ctx.globalAlpha = ghostAlpha;
-      ctx.font = `900 ${ghostSz}px "${fontName}", sans-serif`;
-      ctx.textAlign = "left";
-      ctx.fillStyle = base;
-      ctx.fillText(ghostTxt, bx + boxPadX, ghostCurY);
-      ctx.restore();
-      ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
-    }
-    el.now.textContent = text; return;
-  }
-
-  // ==== TWOBOX style — special layout, own draw path ====
-  if(mode === 'twobox'){
-    const boxPadX=fontSize*0.65, boxPadY=fontSize*0.50;
-    const maxLW5 = cv.width*0.80;
-    const lines5 = wrapWordsToLines(words, maxLW5, measureText);
-    const lineH5  = fontSize*1.3;
-    const totalBH5 = lines5.length*lineH5 + boxPadY*2 - lineH5*0.15;
-    const maxTW5  = Math.max(...lines5.map(l=>measureText(l.map(w=>w.word).join(' '))));
-    const totalBW5 = Math.min(cv.width*0.90, maxTW5+boxPadX*2);
-    const bx5=(cv.width-totalBW5)/2, by5=yFromPos()-totalBH5/2;
-    drawBgBox(bx5, by5, totalBW5, totalBH5, fontSize*0.35);
-    ctx.save(); ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=2.5;
-    roundRect(ctx, bx5, by5, totalBW5, totalBH5, fontSize*0.35); ctx.stroke(); ctx.restore();
-    ctx.textAlign='left';
-    const tsy5 = by5+boxPadY+fontSize;
-    for(let li=0; li<lines5.length; li++){
-      let lx5=bx5+boxPadX; const ly5=tsy5+li*lineH5;
-      for(let wi=0; wi<lines5[li].length; wi++){
-        const wrd=lines5[li][wi];
-        const isActive = words.indexOf(wrd)===activeIdx;
-        drawWord(wrd.word, lx5, ly5, isActive ? base : hi);
-        lx5 += measureText(wrd.word + (wi<lines5[li].length-1?' ':''));
-      }
-    }
-    el.now.textContent = words[activeIdx]?.word||text; return;
-  }
-
-  // ==== WORDBOX style — colored box behind active word ====
-  if(mode === 'wordbox'){
-    const layout = wrapOn ? layoutWrappedLines(words, wrapMaxW) : layoutSingleLine(words).map(({w,x})=>({w,x,y}));
-    ctx.textAlign='left';
-    // pass 1: draw box behind active word
-    for(const {w, x, y:wy} of layout){
-      if(words.indexOf(w)===activeIdx){
-        const ww=measureText(w.word), bp=fontSize*0.15;
-        ctx.save(); ctx.fillStyle=hi;
-        roundRect(ctx, x-bp, wy-fontSize-bp*0.5, ww+bp*2, fontSize+bp*2, fontSize*0.2);
-        ctx.fill(); ctx.restore();
-      }
-    }
-    // pass 2: draw text
-    for(const {w, x, y:wy} of layout){
-      const isActive = words.indexOf(w)===activeIdx;
-      drawWord(w.word, x, wy, isActive ? '#000000' : base);
-    }
-    el.now.textContent = words[activeIdx]?.word||text; return;
-  }
-
-  // ==== MAIN PATH — karaoke / dim / solid styles + all word-entry animations ====
-  // colorFn: given word index, return fill color
-  const colorFn = (wi) => {
-    if(mode==='solid') return hi;
-    if(mode==='dim')   return wi===activeIdx ? hi : base; // alpha handled in draw
-    return wi===activeIdx ? hi : base; // karaoke default
-  };
-  const alphaFn = (wi) => {
-    if(mode==='dim') return wi===activeIdx ? 1.0 : 0.35;
-    return 1;
-  };
-
-  // Optional full-line bg box (karaoke/dim/solid share the bg box toggle)
-  if(getToggle(el.tBg)){
-    const layout2 = wrapOn ? layoutWrappedLines(words, wrapMaxW) : [{w:null,x:null,y}];
-    if(wrapOn){
-      // one box per line
-      const lineGroups = {};
-      for(const {w,x,y:wy} of layout2){
-        if(!lineGroups[wy]) lineGroups[wy]={minX:x, maxX:x+measureText(w.word), y:wy};
-        else { lineGroups[wy].minX=Math.min(lineGroups[wy].minX,x); lineGroups[wy].maxX=Math.max(lineGroups[wy].maxX,x+measureText(w.word)); }
-      }
-      for(const {minX,maxX,y:wy} of Object.values(lineGroups)){
-        const bpad=fontSize*0.3;
-        drawBgBox(minX-bpad, wy-fontSize-bpad*0.5, (maxX-minX)+bpad*2, fontSize+bpad*1.5, fontSize*0.25);
-      }
-    } else {
-      const lineW = measureText(text);
-      drawBgBox(cv.width/2-lineW/2-padX, y-fontSize-padY*0.5, lineW+padX*2, fontSize+padY*1.5, boxRadius);
-    }
-  }
-
-  // ---- letters entry: special draw path ----
-  if(animMode === 'letters'){
-    const layout3 = wrapOn ? layoutWrappedLines(words, wrapMaxW) : null;
-    if(wrapOn && layout3){
-      // group by line-y for per-line letter reveal
-      const byLine = {};
-      for(const item of layout3){ (byLine[item.y]||(byLine[item.y]=[])).push(item); }
-      for(const [ly, items] of Object.entries(byLine)){
-        const wordList = items.map(it=>it.w);
-        drawWordsLetterReveal(wordList, items[0].x, +ly, (wi,wrd)=>colorFn(words.indexOf(wrd)));
-      }
-    } else {
-      const full2=words.map(w=>w.word).join(' ');
-      const sx5 = cv.width/2 - measureText(full2)/2;
-      drawWordsLetterReveal(words, sx5, y, (wi)=>colorFn(wi));
-    }
-    el.now.textContent = words[activeIdx]?.word||text; return;
-  }
-
-  // ---- fill-in entry: words appear dim, light up progressively and stay lit ----
-  if(animMode === 'fill'){
-    const layout5 = wrapOn
-      ? layoutWrappedLines(words, wrapMaxW)
-      : layoutSingleLine(words).map(({w,x})=>({w,x,y}));
-    const groupDur = Math.max(0.01, g.end - g.start);
-    const elapsed  = S.time - g.start;
-    // Each word's "spoken" time is based on its individual timing within the group
-    ctx.textAlign='left';
-    for(let i=0; i<layout5.length; i++){
-      const {w, x:wx, y:wy} = layout5[i];
-      const wi = words.indexOf(w);
-      const wordStart = w.start - g.start; // time relative to group start
-      const wordEnd   = w.end   - g.start;
-      const wordMid   = wordStart; // light up when the word begins
-
-      // How far into this word's activation are we?
-      const fadeInDur = 0.12; // gentle fade duration in seconds
-      let fillAlpha;
-      if(elapsed >= wordMid + fadeInDur){
-        // Fully lit — word has been spoken
-        fillAlpha = 1.0;
-      } else if(elapsed >= wordMid){
-        // Fading in
-        const p = (elapsed - wordMid) / fadeInDur;
-        fillAlpha = 0.25 + 0.75 * (p * p * (3 - 2 * p)); // smoothstep
-      } else {
-        // Not yet spoken — dim
-        fillAlpha = 0.25;
-      }
-
-      // Color: use highlight color for spoken words, base for unspoken
-      const isSpoken = elapsed >= wordMid;
-      const fillColor = isSpoken ? hi : base;
-      const dimAlpha = mode === 'dim' ? (wi === activeIdx ? 1.0 : (isSpoken ? 0.85 : 0.25)) : fillAlpha;
-
-      if(mode === 'solid'){
-        drawWord(w.word, wx, wy, hi, fillAlpha);
-      } else if(mode === 'dim'){
-        drawWord(w.word, wx, wy, base, dimAlpha);
-      } else {
-        // karaoke-style: unspoken = base dim, spoken = hi bright
-        drawWord(w.word, wx, wy, fillColor, fillAlpha);
-      }
-    }
-    el.now.textContent = words[activeIdx]?.word||text; return;
-  }
-
-  // ---- word-by-word entry (none / typewriter / slam / fadeup / scale / bounce) ----
-  const layout4 = wrapOn
-    ? layoutWrappedLines(words, wrapMaxW)
-    : layoutSingleLine(words).map(({w,x})=>({w,x,y}));
-
-  ctx.textAlign='left';
-  for(let i=0; i<layout4.length; i++){
-    const {w, x:wx, y:wy} = layout4[i];
-    const wi = words.indexOf(w);
-    const {alpha:a, sx, sy, oy, skip} = wordEntryTransform(wi, words.length);
-    if(skip) continue;
-    drawWord(w.word, wx, wy, colorFn(wi), a * alphaFn(wi), sx, sy, oy);
-  }
-  el.now.textContent = words[activeIdx]?.word||text;
-}
-
-/* regroup based on words per caption */
 function regroup(){
-  if(!S.words.length){ S.groups=[]; updateEditorStats(); return; }
-  const sz = parseInt(el.wpc.value,10) || 2;
-  const grouped = groupWords(S.words, sz);
-  // rebuild text with caps toggle
-  const caps = getToggle(el.tCaps);
-  S.groups = grouped.map(g=>({
-    ...g,
-    text: caps ? g.text.toUpperCase() : g.text,
-    wt: caps ? g.wt.map(w=>({...w, word:w.word.toUpperCase()})) : g.wt
-  }));
-  // Auto-populate editor (non-manual mode)
+  const wpc = parseInt(el.wpc.value, 10) || 2;
+  S.groups = groupWords(S.words, wpc);
+  if(S.words.length){
+    S.duration = S.words[S.words.length-1].end;
+    el.tcTot.textContent = fmtTC(S.duration);
+    el.renderBtn.disabled = false;
+  }
+  // Repopulate editor whenever regroup happens in auto mode
   if(!S.manualEdit) populateEditorFromGroups();
   updateEditorStats();
 }
 
-/* =========================
-   Caption Text Editor
-   ========================= */
-S.manualEdit = false;
-
-function populateEditorFromGroups(){
-  if(!S.groups.length){ el.captionEditor.value = ''; return; }
-  const caps = getToggle(el.tCaps);
-  el.captionEditor.value = S.groups.map(g =>
-    g.wt.map(w => caps ? w.word.toUpperCase() : w.word).join(' ')
-  ).join('\n');
-  setEditorBadge(false);
+/* ---------- time fmt ---------- */
+function fmtTC(t){
+  if(!isFinite(t)) t=0;
+  const m = Math.floor(t/60);
+  const s = Math.floor(t%60);
+  const cs = Math.floor((t*100)%100);
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+'.'+String(cs).padStart(2,'0');
 }
 
-function setEditorBadge(manual){
-  el.editorBadge.textContent = manual ? 'MANUAL' : 'AUTO';
-  el.editorBadge.className = 'editor-badge ' + (manual ? 'badge-manual' : 'badge-auto');
+/* ---------- active group / word ---------- */
+function getActiveGroup(t){
+  for(const g of S.groups){
+    if(t >= g.start && t < g.end) return g;
+  }
+  return null;
+}
+function getActiveWordIdx(group, t){
+  for(let i=0; i<group.wt.length; i++){
+    if(t >= group.wt[i].start && t < group.wt[i].end) return i;
+  }
+  // fall-through: past the end of the last word but still in group window
+  if(t >= group.wt[group.wt.length-1].start) return group.wt.length-1;
+  return -1;
 }
 
-function updateEditorStats(){
-  if(!S.words.length){ el.editorStats.textContent = ''; return; }
-  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
-  el.editorStats.innerHTML = '<b>' + lines.length + '</b> groups · <b>' + S.words.length + '</b> words total';
-}
+/* ---------- drawing ---------- */
+function draw(){
+  const p = PRESETS[S.preset];
+  const t = S.time;
+  ctx.clearRect(0,0,cv.width,cv.height);
 
-function applyEditorToGroups(){
-  if(!S.words.length) return;
-  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
-  if(!lines.length) return;
+  // Background
+  const bgMode = el.bgMode.value;
+  if(S.rendering){
+    if(bgMode === 'green'){ ctx.fillStyle='#00FF00'; ctx.fillRect(0,0,cv.width,cv.height); }
+    else if(bgMode === 'blue'){ ctx.fillStyle='#0000FF'; ctx.fillRect(0,0,cv.width,cv.height); }
+    else if(bgMode === 'transparent'){ /* leave transparent (for PNG export) */ }
+    else { ctx.fillStyle='#000000'; ctx.fillRect(0,0,cv.width,cv.height); }
+  } else {
+    // Preview: show the export bg color (with a dim overlay for transparent/black so it's visible)
+    if(bgMode === 'green'){ ctx.fillStyle='#00FF00'; }
+    else if(bgMode === 'blue'){ ctx.fillStyle='#0000FF'; }
+    else if(bgMode === 'transparent'){
+      // Transparency checkerboard preview
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0,0,cv.width,cv.height);
+      ctx.fillStyle = '#222';
+      const sz = 40;
+      for(let y=0; y<cv.height; y+=sz){
+        for(let x=0; x<cv.width; x+=sz){
+          if(((x/sz) + (y/sz)) % 2 === 0){
+            ctx.fillRect(x,y,sz,sz);
+          }
+        }
+      }
+      // Still show placeholder / caption on top of the checkerboard
+      if(!S.groups.length){
+        ctx.fillStyle = '#888';
+        ctx.font = '600 36px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Drop an SRT to begin', cv.width/2, cv.height/2);
+        return;
+      }
+      drawCaption(p, t);
+      return;
+    }
+    else { ctx.fillStyle='#1a1a1a'; }
+    ctx.fillRect(0,0,cv.width,cv.height);
+  }
 
-  // Count total words in editor vs S.words
-  const editorWords = lines.flatMap(l => l.trim().split(/\s+/).filter(Boolean));
-  if(editorWords.length !== S.words.length){
-    // Word count mismatch, show warning and don't apply
-    el.editorStats.innerHTML = '<span style="color:var(--bad)">⚠ Word count mismatch: editor has <b>' + editorWords.length + '</b>, SRT has <b>' + S.words.length + '</b>. Fix or re-flow.</span>';
+  if(!S.groups.length){
+    ctx.fillStyle = '#666';
+    ctx.font = '600 36px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Drop an SRT to begin', cv.width/2, cv.height/2);
     return;
   }
 
-  const caps = getToggle(el.tCaps);
-  const newGroups = [];
-  let wordIdx = 0;
-
-  for(const line of lines){
-    const lineWords = line.trim().split(/\s+/).filter(Boolean);
-    if(!lineWords.length) continue;
-    const wt = [];
-    for(let i = 0; i < lineWords.length; i++){
-      if(wordIdx >= S.words.length) break;
-      const orig = S.words[wordIdx];
-      // Use the editor text for display, original timing
-      const displayWord = lineWords[i];
-      wt.push({
-        word: caps ? displayWord.toUpperCase() : displayWord,
-        start: orig.start,
-        end: orig.end
-      });
-      wordIdx++;
-    }
-    if(wt.length){
-      newGroups.push({
-        wt,
-        start: wt[0].start,
-        end: wt[wt.length - 1].end,
-        text: wt.map(w => w.word).join(' ')
-      });
-    }
-  }
-
-  if(newGroups.length){
-    S.groups = newGroups;
-  }
-  updateEditorStats();
-  drawAt(S.time);
+  drawCaption(p, t);
 }
 
-// Editor input: mark as manual and apply
-el.captionEditor.addEventListener('input', ()=>{
-  S.manualEdit = true;
-  setEditorBadge(true);
-  applyEditorToGroups();
-});
+function drawCaption(p, t){
+  const g = getActiveGroup(t);
+  if(!g) return;
 
-// Re-flow from WPC: reset to auto grouping
-el.editorReflow.addEventListener('click', ()=>{
-  S.manualEdit = false;
-  regroup();
-  drawAt(S.time);
-});
+  const activeIdx = getActiveWordIdx(g, t);
+  // Defensive parsing — if the size input is empty/invalid (e.g. an older
+  // preset set a value that no longer maps to an option), fall back to 70
+  // so the canvas doesn't silently go blank from NaN fontSize.
+  const sizeVal = parseInt(el.size.value, 10);
+  const fontSize = (isFinite(sizeVal) && sizeVal > 0 ? sizeVal : 70) * (cv.width / 1080);
+  const lsVal = parseInt(el.letterSpacing.value, 10);
+  const letterSp = isFinite(lsVal) ? lsVal : 0;
+  const base = el.baseColor.value;
+  const hi = el.hiColor.value;
+  const fontFamily = el.fontFamily.value;
+  const fontWeight = el.fontWeight.value;
 
-// Reset to original (1 word per line)
-el.editorReset.addEventListener('click', ()=>{
-  if(!S.words.length) return;
-  S.manualEdit = true;
-  setEditorBadge(true);
-  const caps = getToggle(el.tCaps);
-  el.captionEditor.value = S.words.map(w => caps ? w.word.toUpperCase() : w.word).join('\n');
-  applyEditorToGroups();
-});
+  ctx.font = `${fontWeight} ${fontSize}px "${fontFamily}", sans-serif`;
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = `${letterSp}px`;
 
-/* playback */
+  if(p.mode === 'row' || p.mode === 'pill'){
+    drawRow(g, activeIdx, fontSize, base, hi, p);
+  } else if(p.mode === 'punch'){
+    drawPunch(g, activeIdx, t, fontSize, base, hi, p);
+  } else if(p.mode === 'build'){
+    drawBuild(g, t, fontSize, base, hi, p);
+  }
+}
+
+function measure(s){ return ctx.measureText(s).width; }
+
+// Pick Y position from vertical-position select
+function yFromVPos(){
+  const v = el.vpos.value;
+  if(v === 'top') return cv.height * 0.22;
+  if(v === 'center') return cv.height * 0.52;
+  return cv.height * 0.82;
+}
+
+// Draw a single word with current stroke/shadow settings
+function drawWord(word, x, y, color, opts){
+  opts = opts || {};
+  const scale = opts.scale ?? 1;
+  const alpha = opts.alpha ?? 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if(scale !== 1){
+    const w = measure(word);
+    ctx.translate(x + w/2, y);
+    ctx.scale(scale, scale);
+    ctx.translate(-(x + w/2), -y);
+  }
+
+  // Drop shadow (applied to both stroke and fill via canvas shadow props)
+  if(getTog(el.tShadow)){
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = +el.shadowBlur.value * (cv.width/1080);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = +el.shadowY.value * (cv.width/1080);
+  }
+
+  // Stroke
+  if(getTog(el.tStroke)){
+    ctx.lineWidth = +el.strokeW.value * (cv.width/1080);
+    ctx.strokeStyle = '#000';
+    ctx.lineJoin = 'round';
+    ctx.strokeText(word, x, y);
+  }
+
+  // Fill — disable shadow for the fill pass if we already stroked it
+  // (otherwise the shadow doubles up). Only apply shadow to the stroke if
+  // present; fill just gets the color.
+  if(getTog(el.tShadow) && getTog(el.tStroke)){
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+  }
+
+  ctx.fillStyle = color;
+  ctx.fillText(word, x, y);
+  ctx.restore();
+}
+
+// Wrap words into lines based on max pixel width
+function wrapToLines(words, maxPxW){
+  const lines = [];
+  let cur = [];
+  let curW = 0;
+  const spaceW = measure(' ');
+  for(const w of words){
+    const ww = measure(w);
+    const needed = curW + (cur.length ? spaceW : 0) + ww;
+    if(needed > maxPxW && cur.length){
+      lines.push(cur);
+      cur = [w];
+      curW = ww;
+    } else {
+      cur.push(w);
+      curW = needed;
+    }
+  }
+  if(cur.length) lines.push(cur);
+  return lines;
+}
+
+function drawRow(g, activeIdx, fontSize, base, hi, p){
+  const allCaps = getTog(el.tAllCaps);
+  const rawWords = g.wt.map(w => allCaps ? w.word.toUpperCase() : w.word);
+
+  const wrap = getTog(el.tWrap);
+  const wrapMaxW = cv.width * (+el.wrapW.value / 100);
+
+  // Build lines: with wrap, break into multiple lines; otherwise one line.
+  const lines = wrap ? wrapToLines(rawWords, wrapMaxW) : [rawWords];
+
+  const spaceW = measure(' ');
+  const lineH = fontSize * 1.28;
+  const baseY = yFromVPos();
+  const startY = baseY - ((lines.length-1) * lineH)/2;
+
+  // Background box spanning all lines (if enabled)
+  if(getTog(el.tBgBox)){
+    const maxLineW = Math.max(...lines.map(ln => {
+      const widths = ln.map(w => measure(w));
+      return widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    }));
+    const scale = cv.width/1080;
+    const pad = (+el.bgBoxPad.value) * scale;
+    const offsetY = (+el.bgBoxOffsetY.value) * scale;
+    const radius = (+el.bgBoxRadius.value) * scale;
+    // Box top: above the cap height of the first line. fontSize*0.82 is a
+    // good visual approximation of cap height for most display fonts.
+    const bx = cv.width/2 - maxLineW/2 - pad;
+    const by = startY - fontSize*0.82 - pad + offsetY;
+    const bw = maxLineW + pad*2;
+    const bh = (lines.length-1)*lineH + fontSize*0.95 + pad*2;
+    const [r,gv,b] = hexToRgb(el.bgBoxColor.value);
+    const op = +el.bgBoxOpacity.value / 100;
+    ctx.fillStyle = `rgba(${r},${gv},${b},${op})`;
+    roundRect(ctx, bx, by, bw, bh, radius);
+    ctx.fill();
+  }
+
+  // Walk words with a running global index so activeIdx still refers to the
+  // flat words array (not per-line).
+  let globalIdx = 0;
+  ctx.textAlign = 'left';
+
+  // If pill mode, first pass draws pill rectangles
+  if(p.mode === 'pill'){
+    let gi = 0;
+    for(let li=0; li<lines.length; li++){
+      const ln = lines[li];
+      const widths = ln.map(w => measure(w));
+      const lineW = widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+      const y = startY + li*lineH;
+      let x = cv.width/2 - lineW/2;
+      for(let i=0; i<ln.length; i++){
+        if(gi === activeIdx){
+          const pillPadX = fontSize * 0.25;
+          const pillPadY = fontSize * 0.18;
+          const px = x - pillPadX;
+          const py = y - fontSize + pillPadY * 0.2;
+          const pw = widths[i] + pillPadX * 2;
+          const ph = fontSize * 1.15;
+          ctx.fillStyle = hi;
+          roundRect(ctx, px, py, pw, ph, ph*0.18);
+          ctx.fill();
+        }
+        x += widths[i] + spaceW;
+        gi++;
+      }
+    }
+  }
+
+  // Main text pass
+  for(let li=0; li<lines.length; li++){
+    const ln = lines[li];
+    const widths = ln.map(w => measure(w));
+    const lineW = widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    const y = startY + li*lineH;
+    let x = cv.width/2 - lineW/2;
+    for(let i=0; i<ln.length; i++){
+      let color = base;
+      if(p.mode === 'row'){
+        color = (globalIdx === activeIdx) ? hi : base;
+      } else if(p.mode === 'pill'){
+        color = (globalIdx === activeIdx) ? el.pillTextColor.value : base;
+      }
+      drawWord(ln[i], x, y, color);
+      x += widths[i] + spaceW;
+      globalIdx++;
+    }
+  }
+}
+
+function drawBuild(g, t, fontSize, base, hi, p){
+  // BUILD mode: words appear one by one, fading from the pre-reveal color
+  // (dim placeholder) to the base color as their start time arrives.
+  // Layout matches drawRow exactly so wrap, bg box, vpos all work.
+  const allCaps = getTog(el.tAllCaps);
+  const rawWords = g.wt.map(w => allCaps ? w.word.toUpperCase() : w.word);
+  const wrap = getTog(el.tWrap);
+  const wrapMaxW = cv.width * (+el.wrapW.value / 100);
+  const lines = wrap ? wrapToLines(rawWords, wrapMaxW) : [rawWords];
+
+  const spaceW = measure(' ');
+  const lineH = fontSize * 1.28;
+  const baseY = yFromVPos();
+  const startY = baseY - ((lines.length-1) * lineH)/2;
+
+  // Background box (same as drawRow)
+  if(getTog(el.tBgBox)){
+    const maxLineW = Math.max(...lines.map(ln => {
+      const widths = ln.map(w => measure(w));
+      return widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    }));
+    const scale = cv.width/1080;
+    const pad = (+el.bgBoxPad.value) * scale;
+    const offsetY = (+el.bgBoxOffsetY.value) * scale;
+    const radius = (+el.bgBoxRadius.value) * scale;
+    const bx = cv.width/2 - maxLineW/2 - pad;
+    const by = startY - fontSize*0.82 - pad + offsetY;
+    const bw = maxLineW + pad*2;
+    const bh = (lines.length-1)*lineH + fontSize*0.95 + pad*2;
+    const [r,gv,b] = hexToRgb(el.bgBoxColor.value);
+    const op = +el.bgBoxOpacity.value / 100;
+    ctx.fillStyle = `rgba(${r},${gv},${b},${op})`;
+    roundRect(ctx, bx, by, bw, bh, radius);
+    ctx.fill();
+  }
+
+  const preColor = el.preRevealColor.value;
+  const preOpacity = (+el.preRevealOpacity.value) / 100;
+  const FADE_DUR = 0.18; // 180ms crossfade from pre-reveal to revealed
+
+  ctx.textAlign = 'left';
+  let globalIdx = 0;
+  for(let li=0; li<lines.length; li++){
+    const ln = lines[li];
+    const widths = ln.map(w => measure(w));
+    const lineW = widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    const y = startY + li*lineH;
+    let x = cv.width/2 - lineW/2;
+    for(let i=0; i<ln.length; i++){
+      const wInfo = g.wt[globalIdx];
+      // How far past the word's start are we (in seconds)? Negative = not yet revealed.
+      const since = t - wInfo.start;
+      let color, alpha;
+      if(since <= 0){
+        // Pre-reveal state
+        color = preColor;
+        alpha = preOpacity;
+      } else if(since >= FADE_DUR){
+        // Fully revealed
+        color = base;
+        alpha = 1;
+      } else {
+        // Crossfading. Interpolate color from preColor → base, alpha from preOpacity → 1.
+        const t01 = since / FADE_DUR;
+        color = lerpColor(preColor, base, t01);
+        alpha = preOpacity + (1 - preOpacity) * t01;
+      }
+      drawWord(ln[i], x, y, color, { alpha });
+      x += widths[i] + spaceW;
+      globalIdx++;
+    }
+  }
+}
+
+// Hex → hex linear interpolation between two colors at t ∈ [0,1].
+function lerpColor(a, b, t){
+  const [ar,ag,ab] = hexToRgb(a);
+  const [br,bg,bb] = hexToRgb(b);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function drawPunch(g, activeIdx, t, fontSize, base, hi, p){
+  if(activeIdx < 0) return;
+  const w = g.wt[activeIdx];
+  const allCaps = getTog(el.tAllCaps);
+  const word = allCaps ? w.word.toUpperCase() : w.word;
+
+  const wordDur = Math.max(0.01, w.end - w.start);
+  const animDur = Math.min(0.18, wordDur * 0.4);
+  const elapsed = t - w.start;
+  let scale = 1;
+  if(elapsed < animDur){
+    const p01 = elapsed / animDur;
+    const eased = p01 < 0.5 ? p01 * 2 * 1.15 : 1.15 - (p01 - 0.5) * 2 * 0.15;
+    scale = eased;
+  }
+
+  const wWidth = measure(word);
+  const y = yFromVPos();
+  const x = cv.width/2 - wWidth/2;
+
+  // Optional bg box behind single word
+  if(getTog(el.tBgBox)){
+    const scl = cv.width/1080;
+    const pad = (+el.bgBoxPad.value) * scl;
+    const offsetY = (+el.bgBoxOffsetY.value) * scl;
+    const radius = (+el.bgBoxRadius.value) * scl;
+    const [r,gv,b] = hexToRgb(el.bgBoxColor.value);
+    const op = +el.bgBoxOpacity.value / 100;
+    ctx.fillStyle = `rgba(${r},${gv},${b},${op})`;
+    roundRect(ctx,
+      x - pad,
+      y - fontSize*0.82 - pad + offsetY,
+      wWidth + pad*2,
+      fontSize*0.95 + pad*2,
+      radius
+    );
+    ctx.fill();
+  }
+
+  ctx.textAlign = 'left';
+  drawWord(word, x, y, hi, { scale });
+}
+
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+/* ---------- playback ---------- */
 function tick(ts){
   if(!S.playing) return;
-  if(!S.last) S.last=ts;
-  const dt=(ts-S.last)/1000;
-  S.last=ts;
+  if(!S.lastTs) S.lastTs = ts;
+  const dt = (ts - S.lastTs)/1000;
+  S.lastTs = ts;
   S.time += dt;
-  if(S.time>=S.duration){ S.time=S.duration; S.playing=false; el.play.textContent='▶'; }
-  drawAt(S.time);
-  el.scrub.value = S.duration ? Math.floor((S.time/S.duration)*1000) : 0;
-  S.raf=requestAnimationFrame(tick);
+  if(S.time >= S.duration){
+    S.time = S.duration;
+    S.playing = false;
+    el.playBtn.textContent = '▶';
+  }
+  updateTime();
+  draw();
+  if(S.playing) S.raf = requestAnimationFrame(tick);
 }
-el.play.addEventListener('click',()=>{
+function updateTime(){
+  el.tcCur.textContent = fmtTC(S.time);
+  el.scrub.value = S.duration ? Math.floor((S.time/S.duration)*1000) : 0;
+}
+
+el.playBtn.addEventListener('click', ()=>{
   if(!S.groups.length) return;
-  S.playing=!S.playing;
-  el.play.textContent = S.playing ? '❚❚' : '▶';
-  if(S.playing){ S.last=0; S.raf=requestAnimationFrame(tick); }
-  else cancelAnimationFrame(S.raf);
+  S.playing = !S.playing;
+  el.playBtn.textContent = S.playing ? '❚❚' : '▶';
+  if(S.playing){
+    if(S.time >= S.duration) S.time = 0;
+    S.lastTs = 0;
+    S.raf = requestAnimationFrame(tick);
+  } else {
+    cancelAnimationFrame(S.raf);
+  }
 });
-el.restart.addEventListener('click',()=>{
-  S.time=0; S.last=0; drawAt(0); el.scrub.value=0;
-});
-el.scrub.addEventListener('input',()=>{
+el.scrub.addEventListener('input', ()=>{
   if(!S.duration) return;
-  const t=(+el.scrub.value/1000)*S.duration;
-  S.time=t; drawAt(t);
+  S.time = (+el.scrub.value/1000) * S.duration;
+  updateTime();
+  draw();
 });
 
-/* =========================
-   Video render — MP4 via WebCodecs (tries multiple H.264 profiles)
-   Falls back to MediaRecorder WebM only if everything fails
-   ========================= */
-async function renderVideo(){
+/* ---------- preset & color wiring ---------- */
+document.querySelectorAll('.preset').forEach(p => {
+  p.addEventListener('click', ()=>{
+    document.querySelectorAll('.preset').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    S.preset = p.dataset.preset;
+    // Apply preset defaults to the global controls
+    const def = PRESETS[S.preset];
+    el.wpc.value = String(def.wpc);
+    setTog(el.tStroke, def.stroke);
+    if(def.stroke){
+      el.strokeW.value = String(def.strokeW);
+      el.strokeWVal.textContent = String(def.strokeW);
+    }
+    el.strokeOpts.style.display = def.stroke ? '' : 'none';
+    // show pill text color only for pill preset
+    el.pillColorRow.classList.toggle('show', S.preset === 'pill');
+    // show build-only controls (pre-reveal color + opacity) only for build preset
+    el.buildRow.classList.toggle('show', S.preset === 'build');
+    el.buildOpacityRow.classList.toggle('show', S.preset === 'build');
+    if(S.preset === 'build'){
+      if(def.preColor)   el.preRevealColor.value = def.preColor;
+      if(def.preOpacity != null){
+        el.preRevealOpacity.value = String(def.preOpacity);
+        el.preRevealOpacityVal.textContent = def.preOpacity + '%';
+      }
+    }
+    S.manualEdit = false;
+    regroup();
+    draw();
+  });
+});
+[el.baseColor, el.hiColor, el.pillTextColor, el.size, el.ar, el.bgMode, el.vpos].forEach(inp => {
+  inp.addEventListener('input', ()=>{
+    if(inp === el.ar) applyAspect();
+    else draw();
+  });
+  inp.addEventListener('change', ()=>{
+    if(inp === el.ar) applyAspect();
+    else draw();
+  });
+});
+
+// --- Toggle helpers (click .tog to flip .on) ---
+function getTog(tog){ return tog.classList.contains('on'); }
+function setTog(tog, on){ tog.classList.toggle('on', !!on); }
+function wireTog(tog, subOpts, onChange){
+  tog.addEventListener('click', ()=>{
+    const newOn = !getTog(tog);
+    setTog(tog, newOn);
+    if(subOpts) subOpts.style.display = newOn ? '' : 'none';
+    if(onChange) onChange(newOn);
+    draw();
+  });
+}
+wireTog(el.tAllCaps, null);
+wireTog(el.tStroke, el.strokeOpts);
+wireTog(el.tShadow, el.shadowOpts);
+wireTog(el.tBgBox, el.bgBoxOpts);
+wireTog(el.tWrap, el.wrapOpts);
+
+// --- Range inputs with live value labels ---
+function wireRange(input, valEl, suffix){
+  suffix = suffix || '';
+  const update = () => {
+    valEl.textContent = input.value + suffix;
+    draw();
+  };
+  input.addEventListener('input', update);
+  input.addEventListener('change', update);
+}
+wireRange(el.strokeW, el.strokeWVal, '');
+wireRange(el.shadowBlur, el.shadowBlurVal, '');
+wireRange(el.shadowY, el.shadowYVal, '');
+wireRange(el.bgBoxOpacity, el.bgBoxOpacityVal, '');
+wireRange(el.bgBoxOffsetY, el.bgBoxOffsetYVal, 'px');
+wireRange(el.bgBoxPad, el.bgBoxPadVal, '');
+wireRange(el.bgBoxRadius, el.bgBoxRadiusVal, '');
+wireRange(el.wrapW, el.wrapWVal, '%');
+wireRange(el.letterSpacing, el.letterSpacingVal, 'px');
+wireRange(el.preRevealOpacity, el.preRevealOpacityVal, '%');
+
+// --- BG box color ---
+el.bgBoxColor.addEventListener('input', draw);
+el.preRevealColor.addEventListener('input', draw);
+
+// --- WPC changes regroup ---
+el.wpc.addEventListener('change', () => {
+  S.manualEdit = false;
+  regroup();
+  draw();
+});
+
+/* ---------- file drop ---------- */
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const entries = parseSRT(e.target.result);
+      S.words = entriesToWords(entries);
+      if(!S.words.length){
+        alert('No captions found in that SRT.');
+        return;
+      }
+      regroup();
+      S.time = 0;
+      updateTime();
+      el.stats.style.display = 'block';
+      el.stats.innerHTML = `<b>${entries.length}</b> entries · <b>${S.words.length}</b> words · <b>${S.groups.length}</b> groups · <b>${fmtTC(S.duration)}</b>`;
+      draw();
+    } catch(err){
+      console.error(err);
+      alert('Failed to parse SRT: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+el.drop.addEventListener('click', ()=> el.fileInput.click());
+el.fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+el.drop.addEventListener('dragover', e => { e.preventDefault(); el.drop.classList.add('drag'); });
+el.drop.addEventListener('dragleave', ()=> el.drop.classList.remove('drag'));
+el.drop.addEventListener('drop', e => {
+  e.preventDefault();
+  el.drop.classList.remove('drag');
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+/* ---------- export MP4 ---------- */
+async function renderMP4(){
   if(!S.groups.length) return;
+  if(!('VideoEncoder' in window)){
+    alert('Your browser does not support MP4 encoding (needs WebCodecs). Try a recent Chromium-based browser.');
+    return;
+  }
 
   el.ov.classList.add('show');
-  el.barFill.style.width='0%';
-  el.ovTxt.textContent='Preparing…';
+  el.ovTxt.textContent = 'Loading font…';
+  el.barFill.style.width = '0%';
+
+  // CRITICAL: make sure the chosen font is fully loaded before we start
+  // encoding frames. Otherwise the first batch of frames render with a
+  // fallback font.
+  await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+
+  el.ovTxt.textContent = 'Loading MP4 library…';
 
   const origTime = S.time;
   const origPlaying = S.playing;
   S.playing = false;
   S.rendering = true;
 
-  const fps = parseFloat(el.fpsSelect.value) || 30;
+  const fps = parseFloat(el.fps.value) || 30;
   const duration = S.duration;
   const totalFrames = Math.ceil(duration * fps);
-  const [w,h] = [cv.width, cv.height];
-  const bitrate = Math.max(2_000_000, Math.min(10_000_000, w*h*fps*0.08));
+  const w = cv.width, h = cv.height;
+  const bitrate = Math.max(2_000_000, Math.min(12_000_000, w*h*fps*0.08));
 
-  let blob, ext='mp4';
+  try {
+    const mp4mod = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@4.3.3/+esm');
+    const { Muxer, ArrayBufferTarget } = mp4mod;
 
-  // === PATH A: WebCodecs + mp4-muxer → real MP4 ===
-  if('VideoEncoder' in window){
-    try {
-      el.ovTxt.textContent='Loading MP4 library…';
-      const mp4mod = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@4.3.3/+esm');
-      const { Muxer, ArrayBufferTarget } = mp4mod;
-
-      // try multiple H.264 profiles × acceleration modes until one works
-      const codecs = [
-        'avc1.4D401E',  // Main 3.0
-        'avc1.4D4028',  // Main 4.0
-        'avc1.640028',  // High 4.0
-        'avc1.42E01E',  // Constrained Baseline 3.0
-        'avc1.42001E',  // Baseline 3.0
-      ];
-      const accels = ['prefer-software','prefer-hardware','no-preference'];
-
-      let chosenCodec = null;
-      let chosenAccel = 'no-preference';
-      outer: for(const c of codecs){
-        for(const a of accels){
-          try {
-            const sup = await VideoEncoder.isConfigSupported({
-              codec:c, width:w, height:h, bitrate, framerate:fps,
-              hardwareAcceleration:a
-            });
-            if(sup.supported){ chosenCodec = c; chosenAccel = a; break outer; }
-          } catch(e){}
-        }
-      }
-
-      if(chosenCodec){
-        el.ovTxt.textContent = `Encoding MP4…`;
-
-        const target = new ArrayBufferTarget();
-        const muxer = new Muxer({
-          target,
-          video:{ codec:'avc', width:w, height:h, frameRate:fps },
-          fastStart:'in-memory'
-        });
-
-        const encoder = new VideoEncoder({
-          output:(chunk,meta)=> muxer.addVideoChunk(chunk,meta),
-          error:(e)=>{ throw e; }
-        });
-        encoder.configure({
-          codec:chosenCodec, width:w, height:h, bitrate, framerate:fps,
-          hardwareAcceleration: chosenAccel
-        });
-
-        const off = document.createElement('canvas');
-        off.width=w; off.height=h;
-        const offCtx = off.getContext('2d');
-
-        for(let i=0; i<totalFrames; i++){
-          drawAt(Math.min(duration, i/fps));
-          offCtx.drawImage(cv,0,0);
-          const vf = new VideoFrame(off, {
-            timestamp: i * Math.round(1_000_000/fps),
-            duration: Math.round(1_000_000/fps)
-          });
-          encoder.encode(vf);
-          vf.close();
-          if(i%10===0){
-            el.barFill.style.width = Math.round((i/totalFrames)*100)+'%';
-            el.ovTxt.textContent = `Encoding ${Math.round((i/totalFrames)*100)}%`;
-            await new Promise(r=>setTimeout(r,0));
-          }
-        }
-
-        await encoder.flush();
-        muxer.finalize();
-        encoder.close();
-        blob = new Blob([target.buffer], {type:'video/mp4'});
-        ext = 'mp4';
-      }
-    } catch(e){
-      console.warn('MP4 path failed, falling back:', e);
+    // Probe supported codec
+    const codecs = ['avc1.4D4028','avc1.4D401E','avc1.640028','avc1.42E01E'];
+    let chosen = null;
+    for(const c of codecs){
+      try {
+        const sup = await VideoEncoder.isConfigSupported({ codec:c, width:w, height:h, bitrate, framerate:fps });
+        if(sup.supported){ chosen = c; break; }
+      } catch(e){}
     }
-  }
+    if(!chosen) throw new Error('No supported H.264 codec found');
 
-  // === PATH B: MediaRecorder fallback ===
-  if(!blob){
-    try {
-      el.ovTxt.textContent='Recording (fallback)…';
-      const types = ['video/webm;codecs=h264','video/webm;codecs=vp9','video/webm'];
-      const mime = types.find(t=>MediaRecorder.isTypeSupported(t)) || 'video/webm';
-      ext = 'webm';
+    const target = new ArrayBufferTarget();
+    const muxer = new Muxer({
+      target,
+      video: { codec:'avc', width:w, height:h, frameRate:fps },
+      fastStart: 'in-memory',
+    });
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (e) => { throw e; },
+    });
+    encoder.configure({ codec:chosen, width:w, height:h, bitrate, framerate:fps });
 
-      const stream = cv.captureStream(0);
-      const track = stream.getVideoTracks()[0];
-      const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond:bitrate });
-      const chunks = [];
-      rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
-      rec.start(50);
+    el.ovTxt.textContent = 'Encoding MP4…';
 
-      for(let i=0; i<totalFrames; i++){
-        drawAt(Math.min(duration, i/fps));
-        if(track.requestFrame) track.requestFrame();
-        if(i%8===0){
-          el.barFill.style.width = Math.round((i/totalFrames)*100)+'%';
-          el.ovTxt.textContent = `Recording ${Math.round((i/totalFrames)*100)}%`;
-          await new Promise(r=>setTimeout(r,0));
-        }
-      }
-      await new Promise(r=>setTimeout(r,100));
-      blob = await new Promise(resolve=>{
-        rec.onstop = ()=> resolve(new Blob(chunks, {type:mime}));
-        rec.stop();
+    for(let i=0; i<totalFrames; i++){
+      S.time = Math.min(duration, i/fps);
+      draw();
+      // Correct timestamp math: compute from i/fps each frame in µs.
+      // This keeps fractional-fps timing accurate (no compounding round-off).
+      const tsNow  = Math.round(i       * 1_000_000 / fps);
+      const tsNext = Math.round((i + 1) * 1_000_000 / fps);
+      const vf = new VideoFrame(cv, {
+        timestamp: tsNow,
+        duration: tsNext - tsNow,
       });
-    } catch(e2){
-      console.error(e2);
-      S.rendering = false;
-      el.ov.classList.remove('show');
-      S.time=origTime; S.playing=origPlaying; drawAt(S.time);
-      alert('Render failed: ' + e2.message);
-      return;
+      encoder.encode(vf);
+      vf.close();
+      if(i % 10 === 0){
+        const pct = Math.round((i/totalFrames)*100);
+        el.barFill.style.width = pct + '%';
+        el.ovTxt.textContent = `Encoding ${pct}%`;
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
+
+    await encoder.flush();
+    muxer.finalize();
+    encoder.close();
+
+    const blob = new Blob([target.buffer], { type: 'video/mp4' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wordpunch.mp4';
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+
+    el.ovTxt.textContent = 'Done!';
+    el.barFill.style.width = '100%';
+    setTimeout(()=> el.ov.classList.remove('show'), 500);
+  } catch(err){
+    console.error(err);
+    el.ov.classList.remove('show');
+    alert('Render failed: ' + err.message);
+  } finally {
+    S.rendering = false;
+    S.time = origTime;
+    if(origPlaying){ S.playing = true; S.lastTs = 0; S.raf = requestAnimationFrame(tick); }
+    draw();
   }
-
-  // Restore & offer download
-  S.rendering = false;
-  S.time = origTime;
-  if(origPlaying){ S.playing = true; S.last = 0; S.raf = requestAnimationFrame(tick); }
-  drawAt(S.time);
-
-  S.blob = blob;
-  if(el.dlA._blobUrl) URL.revokeObjectURL(el.dlA._blobUrl);
-  el.dlA._blobUrl = URL.createObjectURL(blob);
-  el.dlA.href = el.dlA._blobUrl;
-  el.dlA.download = `${S.filename||'wordpunch'}_overlay.${ext}`;
-  const bgv = el.renderBg.value;
-  el.dlHint.innerHTML = (bgv==='green'
-    ? 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the green'
-    : bgv==='blue'
-    ? 'In Premiere: place above footage → Effects → <b>Ultra Key</b> → pick the blue'
-    : 'In Premiere: place above footage → Opacity → Blend Mode → <b>Screen</b>')
-    + '<br><span style="opacity:.7">Settings preset also saved as <b>_settings.json</b></span>';
-  el.dlTitle.textContent = 'Video ready!';
-  el.dl.classList.add('show');
-  el.ov.classList.remove('show');
-
-  // Auto-download the rendered video
-  el.dlA.click();
-
-  // Auto-download settings preset alongside the render
-  autoDownloadPreset('mp4');
 }
-
-
-/* =========================
-   PNG Sequence → ZIP export
-   ========================= */
+/* ---------- PNG sequence export ---------- */
 async function renderPngZip(){
   if(!S.groups.length) return;
 
   el.ov.classList.add('show');
-  el.barFill.style.width='0%';
-  el.ovTxt.textContent='Loading ZIP library…';
+  el.ovTxt.textContent = 'Loading font…';
+  el.barFill.style.width = '0%';
+  await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+
+  el.ovTxt.textContent = 'Loading ZIP library…';
 
   const origTime = S.time;
   const origPlaying = S.playing;
   S.playing = false;
   S.rendering = true;
 
-  try {
-    // Load fflate for in-browser ZIP
-    const { zipSync, strToU8 } = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm');
+  const fps = parseFloat(el.fps.value) || 30;
+  const duration = S.duration;
+  const totalFrames = Math.ceil(duration * fps);
 
-    const fps = parseFloat(el.fpsSelect.value) || 30;
-    const duration = S.duration;
-    const totalFrames = Math.ceil(duration * fps);
-    const [w,h] = [cv.width, cv.height];
+  try {
+    const { zipSync } = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm');
     const files = {};
 
-    // Off-screen canvas for rendering frames
-    const off = document.createElement('canvas');
-    off.width = w; off.height = h;
-    const offCtx = off.getContext('2d');
+    el.ovTxt.textContent = 'Rendering frames…';
 
-    for(let i = 0; i < totalFrames; i++){
-      drawAt(Math.min(duration, i/fps));
-      offCtx.clearRect(0,0,w,h);
-      offCtx.drawImage(cv,0,0);
-
-      // toBlob → ArrayBuffer
-      const blob = await new Promise(res => off.toBlob(res, 'image/png'));
-      const buf  = await blob.arrayBuffer();
-      const pad  = String(i).padStart(6,'0');
+    for(let i=0; i<totalFrames; i++){
+      S.time = Math.min(duration, i/fps);
+      draw();
+      // Read the canvas as PNG. Transparent export relies on the bg mode
+      // being 'transparent' — draw() leaves the canvas un-filled in that case.
+      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+      const buf = await blob.arrayBuffer();
+      const pad = String(i).padStart(6, '0');
       files[`frame_${pad}.png`] = new Uint8Array(buf);
-
       if(i % 5 === 0){
-        el.barFill.style.width = Math.round((i/totalFrames)*100)+'%';
-        el.ovTxt.textContent   = `Exporting frame ${i+1} / ${totalFrames}`;
+        const pct = Math.round((i/totalFrames)*100);
+        el.barFill.style.width = pct + '%';
+        el.ovTxt.textContent = `Rendering ${pct}% (${i+1}/${totalFrames})`;
         await new Promise(r=>setTimeout(r,0));
       }
     }
 
     el.ovTxt.textContent = 'Zipping…';
     await new Promise(r=>setTimeout(r,0));
+    // level:0 — PNGs are already compressed; avoid wasting time re-deflating.
+    const zipped = zipSync(files, { level: 0 });
+    const blob = new Blob([zipped], { type:'application/zip' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wordpunch_${fps}fps.zip`;
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
 
-    const zipped = zipSync(files, { level: 0 }); // store only — PNGs are already compressed
-    const zipBlob = new Blob([zipped], { type:'application/zip' });
-
+    el.ovTxt.textContent = 'Done!';
+    el.barFill.style.width = '100%';
+    setTimeout(()=> el.ov.classList.remove('show'), 500);
+  } catch(err){
+    console.error(err);
+    el.ov.classList.remove('show');
+    alert('PNG export failed: ' + err.message);
+  } finally {
     S.rendering = false;
     S.time = origTime;
-    if(origPlaying){ S.playing = true; S.last = 0; S.raf = requestAnimationFrame(tick); }
-    drawAt(S.time);
-
-    el.dlTitle.textContent = 'PNG sequence ready!';
-    if(el.dlA._blobUrl) URL.revokeObjectURL(el.dlA._blobUrl);
-    el.dlA._blobUrl = URL.createObjectURL(zipBlob);
-    el.dlA.href     = el.dlA._blobUrl;
-    el.dlA.download = `${S.filename||'wordpunch'}_alpha.zip`;
-    el.dlHint.innerHTML = 'In Premiere: File → Import → select <b>frame_000000.png</b> → check <b>Image Sequence</b>. True alpha, no keying needed.<br><span style="opacity:.7">Settings preset also saved as <b>_settings.json</b></span>';
-    el.dl.classList.add('show');
-
-    // Auto-download the PNG ZIP
-    el.dlA.click();
-
-    // Auto-download settings preset alongside the render
-    autoDownloadPreset('png');
-
-  } catch(e){
-    console.error(e);
-    S.rendering = false;
-    S.time = origTime;
-    if(origPlaying){ S.playing = true; S.last = 0; S.raf = requestAnimationFrame(tick); }
-    drawAt(S.time);
-    alert('PNG export failed: ' + e.message);
+    if(origPlaying){ S.playing = true; S.lastTs = 0; S.raf = requestAnimationFrame(tick); }
+    draw();
   }
-
-  el.ov.classList.remove('show');
 }
 
-el.render.addEventListener('click', ()=>{
-  if(S.exportFmt === 'png') renderPngZip();
-  else renderVideo();
+/* ---------- Caption editor ---------- */
+function setEditorBadge(manual){
+  el.editorBadge.textContent = manual ? 'MANUAL' : 'AUTO';
+  el.editorBadge.classList.toggle('manual', !!manual);
+}
+function populateEditorFromGroups(){
+  if(!S.groups.length){ el.captionEditor.value = ''; return; }
+  const allCaps = getTog(el.tAllCaps);
+  el.captionEditor.value = S.groups.map(g =>
+    g.wt.map(w => allCaps ? w.word.toUpperCase() : w.word).join(' ')
+  ).join('\n');
+  setEditorBadge(false);
+}
+function updateEditorStats(){
+  if(!S.words.length){ el.editorStats.textContent = ''; return; }
+  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
+  el.editorStats.innerHTML = `<b>${lines.length}</b> groups · <b>${S.words.length}</b> words total`;
+}
+function applyEditorToGroups(){
+  if(!S.words.length) return;
+  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
+  if(!lines.length) return;
+
+  // Sanity: total words in editor must match the SRT word count.
+  // This is how we keep timings aligned — the editor re-words but doesn't
+  // re-time.
+  const editorWords = lines.flatMap(l => l.trim().split(/\s+/).filter(Boolean));
+  if(editorWords.length !== S.words.length){
+    el.editorStats.innerHTML = `<span style="color:var(--bad)">⚠ Word count mismatch: editor has <b>${editorWords.length}</b>, SRT has <b>${S.words.length}</b>. Fix wording or click Re-flow.</span>`;
+    return;
+  }
+
+  const newGroups = [];
+  let wi = 0;
+  for(const line of lines){
+    const lineWords = line.trim().split(/\s+/).filter(Boolean);
+    if(!lineWords.length) continue;
+    const wt = [];
+    for(const lw of lineWords){
+      if(wi >= S.words.length) break;
+      const orig = S.words[wi];
+      wt.push({ word: lw, start: orig.start, end: orig.end });
+      wi++;
+    }
+    if(wt.length){
+      newGroups.push({ wt, start: wt[0].start, end: wt[wt.length-1].end });
+    }
+  }
+  if(newGroups.length) S.groups = newGroups;
+  updateEditorStats();
+  draw();
+}
+
+el.captionEditor.addEventListener('input', ()=>{
+  S.manualEdit = true;
+  setEditorBadge(true);
+  applyEditorToGroups();
+});
+el.editorReflow.addEventListener('click', ()=>{
+  S.manualEdit = false;
+  regroup();
+  draw();
+});
+el.editorReset.addEventListener('click', ()=>{
+  if(!S.words.length) return;
+  S.manualEdit = true;
+  setEditorBadge(true);
+  const allCaps = getTog(el.tAllCaps);
+  el.captionEditor.value = S.words.map(w => allCaps ? w.word.toUpperCase() : w.word).join('\n');
+  applyEditorToGroups();
 });
 
-/* init aspect ratio */
-setAR('16:9');
-
-/* spacebar play/pause */
-document.addEventListener('keydown',(e)=>{
-  if(e.code==='Space' && e.target.tagName!=='INPUT' && e.target.tagName!=='SELECT' && e.target.tagName!=='TEXTAREA'){
-    e.preventDefault();
-    if(!S.groups.length) return;
-    S.playing=!S.playing;
-    el.play.textContent = S.playing ? '❚❚' : '▶';
-    if(S.playing){ S.last=0; S.raf=requestAnimationFrame(tick); }
-    else cancelAnimationFrame(S.raf);
+/* ---------- Route Export button by format ---------- */
+// (actual click binding is in the Presets section below, which also triggers
+// a preset-snapshot download alongside each export.)
+// Update button label AND sensible default bg when format changes
+el.exportFmt.addEventListener('change', ()=>{
+  if(el.exportFmt.value === 'png'){
+    el.renderBtn.textContent = 'Export PNG Sequence';
+    el.bgMode.value = 'transparent';
+  } else {
+    el.renderBtn.textContent = 'Export MP4';
+    // MP4 can't do transparent — flip back to green
+    if(el.bgMode.value === 'transparent') el.bgMode.value = 'green';
   }
-  // Left/right arrow scrub
-  if((e.code==='ArrowLeft'||e.code==='ArrowRight') && e.target.tagName!=='INPUT' && e.target.tagName!=='TEXTAREA'){
-    e.preventDefault();
-    const delta = e.shiftKey ? 5 : 1;
-    const newT = S.time + (e.code==='ArrowRight' ? delta : -delta);
-    S.time = Math.max(0, Math.min(S.duration||0, newT));
-    drawAt(S.time);
-    el.scrub.value = S.duration ? Math.floor((S.time/S.duration)*1000) : 0;
-  }
+  draw();
 });
+
+/* ========================================================================
+   Presets: save, load, migrate legacy (v1) WordPunch presets
+   ======================================================================== */
+
+// Build a v2 preset object from current UI state.
+function buildPreset(){
+  const caps = getTog(el.tAllCaps);
+  return {
+    _wordpunch: true,
+    _version: 2,
+    name: 'WordPunch Preset',
+    savedAt: new Date().toISOString(),
+
+    // Style
+    preset: S.preset,
+    wpc: parseInt(el.wpc.value, 10),
+    allCaps: caps,
+    vpos: el.vpos.value,
+    ar: el.ar.value,
+    size: parseInt(el.size.value, 10),
+    letterSpacing: +el.letterSpacing.value,
+
+    // Font
+    fontFamily: el.fontFamily.value,
+    fontWeight: el.fontWeight.value,
+
+    // Colors
+    baseColor: el.baseColor.value,
+    hiColor: el.hiColor.value,
+    pillTextColor: el.pillTextColor.value,
+    preRevealColor: el.preRevealColor.value,
+    preRevealOpacity: +el.preRevealOpacity.value,
+
+    // Stroke
+    stroke: getTog(el.tStroke),
+    strokeW: +el.strokeW.value,
+
+    // Shadow
+    shadow: getTog(el.tShadow),
+    shadowBlur: +el.shadowBlur.value,
+    shadowY: +el.shadowY.value,
+
+    // Bg box
+    bgBox: getTog(el.tBgBox),
+    bgBoxColor: el.bgBoxColor.value,
+    bgBoxOpacity: +el.bgBoxOpacity.value,
+    bgBoxOffsetY: +el.bgBoxOffsetY.value,
+    bgBoxPad: +el.bgBoxPad.value,
+    bgBoxRadius: +el.bgBoxRadius.value,
+
+    // Wrap
+    wrap: getTog(el.tWrap),
+    wrapW: +el.wrapW.value,
+
+    // Export
+    exportFmt: el.exportFmt.value,
+    fps: el.fps.value,
+    bgMode: el.bgMode.value,
+
+    // Caption state (if edited manually, include the edited lines)
+    captionText: S.manualEdit ? el.captionEditor.value : null,
+
+    // Custom font: store name — the caller may add `customFont` with base64
+    // bytes if one is loaded.
+    customFont: null,
+  };
+}
+
+// Apply a v2 preset to the UI.
+function applyPreset(p, opts){
+  opts = opts || {};
+  const importText = !!opts.importText;
+  const importFont = opts.importFont !== false;
+
+  // Set preset pill (marks the active style mode)
+  if(p.preset && PRESETS[p.preset]){
+    document.querySelectorAll('.preset').forEach(x => x.classList.remove('active'));
+    const btn = document.querySelector(`.preset[data-preset="${p.preset}"]`);
+    if(btn) btn.classList.add('active');
+    S.preset = p.preset;
+    el.pillColorRow.classList.toggle('show', S.preset === 'pill');
+    el.buildRow.classList.toggle('show', S.preset === 'build');
+    el.buildOpacityRow.classList.toggle('show', S.preset === 'build');
+  }
+
+  // Helpers to safely set values
+  const setVal = (inp, v) => { if(v != null) inp.value = String(v); };
+  const setNum = (inp, valEl, v, suffix) => {
+    if(v == null) return;
+    inp.value = String(v);
+    if(valEl) valEl.textContent = String(v) + (suffix || '');
+  };
+
+  setVal(el.wpc, p.wpc);
+  setTog(el.tAllCaps, !!p.allCaps);
+  setVal(el.vpos, p.vpos);
+  setVal(el.ar, p.ar);
+  setVal(el.size, p.size);
+  setNum(el.letterSpacing, el.letterSpacingVal, p.letterSpacing, 'px');
+
+  setVal(el.fontWeight, p.fontWeight);
+  // Font family: only set if present (and known, or if importFont + customFont
+  // handled below will add it to the list)
+  if(p.fontFamily){
+    // Check if the family exists in the select options
+    const opts2 = Array.from(el.fontFamily.options).map(o => o.value);
+    if(opts2.includes(p.fontFamily)){
+      el.fontFamily.value = p.fontFamily;
+    } else if(!importFont){
+      // Leave alone — the custom font name won't resolve, but we don't want
+      // to set an unknown family that would render as fallback silently.
+    } else {
+      // We'll set this after the font loads below
+    }
+  }
+
+  setVal(el.baseColor, p.baseColor);
+  setVal(el.hiColor, p.hiColor);
+  setVal(el.pillTextColor, p.pillTextColor);
+  setVal(el.preRevealColor, p.preRevealColor);
+  setNum(el.preRevealOpacity, el.preRevealOpacityVal, p.preRevealOpacity, '%');
+
+  setTog(el.tStroke, !!p.stroke);
+  el.strokeOpts.style.display = p.stroke ? '' : 'none';
+  setNum(el.strokeW, el.strokeWVal, p.strokeW);
+
+  setTog(el.tShadow, !!p.shadow);
+  el.shadowOpts.style.display = p.shadow ? '' : 'none';
+  setNum(el.shadowBlur, el.shadowBlurVal, p.shadowBlur);
+  setNum(el.shadowY, el.shadowYVal, p.shadowY);
+
+  setTog(el.tBgBox, !!p.bgBox);
+  el.bgBoxOpts.style.display = p.bgBox ? '' : 'none';
+  setVal(el.bgBoxColor, p.bgBoxColor);
+  setNum(el.bgBoxOpacity, el.bgBoxOpacityVal, p.bgBoxOpacity);
+  setNum(el.bgBoxOffsetY, el.bgBoxOffsetYVal, p.bgBoxOffsetY, 'px');
+  setNum(el.bgBoxPad, el.bgBoxPadVal, p.bgBoxPad);
+  setNum(el.bgBoxRadius, el.bgBoxRadiusVal, p.bgBoxRadius);
+
+  setTog(el.tWrap, !!p.wrap);
+  el.wrapOpts.style.display = p.wrap ? '' : 'none';
+  setNum(el.wrapW, el.wrapWVal, p.wrapW, '%');
+
+  setVal(el.exportFmt, p.exportFmt);
+  setVal(el.fps, p.fps);
+  setVal(el.bgMode, p.bgMode);
+  el.renderBtn.textContent = el.exportFmt.value === 'png' ? 'Export PNG Sequence' : 'Export MP4';
+
+  // Custom font handling
+  const doLoadCustomFont = async () => {
+    if(!importFont || !p.customFont || !p.customFont.data) return;
+    try {
+      const bin = atob(p.customFont.data);
+      const buf = new ArrayBuffer(bin.length);
+      const view = new Uint8Array(buf);
+      for(let i=0; i<bin.length; i++) view[i] = bin.charCodeAt(i);
+      const familyName = p.customFont.name || 'Custom Font';
+
+      // If already registered, skip
+      if(!customFonts.has(familyName)){
+        const face = new FontFace(familyName, buf);
+        await face.load();
+        document.fonts.add(face);
+        customFonts.add(familyName);
+        loadedFonts.add(`400 "${familyName}"`);
+        loadedFonts.add(`700 "${familyName}"`);
+        loadedFonts.add(`900 "${familyName}"`);
+        el.customFontGroup.style.display = '';
+        const opt = document.createElement('option');
+        opt.value = familyName;
+        opt.textContent = familyName;
+        el.customFontGroup.appendChild(opt);
+      }
+      // Now set the dropdown to it
+      el.fontFamily.value = familyName;
+    } catch(err){
+      console.warn('Custom font load failed:', err);
+      el.presetStatus.textContent = `⚠ Custom font failed: ${err.message}`;
+    }
+  };
+
+  applyAspect(); // resize canvas
+
+  // Recompute groups, optionally pull caption text
+  (async () => {
+    await doLoadCustomFont();
+    await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+
+    if(S.words.length){
+      S.manualEdit = false;
+      regroup();
+      if(importText && typeof p.captionText === 'string' && p.captionText.trim()){
+        el.captionEditor.value = p.captionText;
+        S.manualEdit = true;
+        setEditorBadge(true);
+        applyEditorToGroups();
+      }
+    }
+    draw();
+  })();
+}
+
+// Migrate a legacy v1 preset into the v2 shape. The legacy format uses
+// flat keys and the v1 "mode" field maps roughly to our 3 presets.
+function migrateLegacyPreset(legacy){
+  // Map v1 mode → v2 preset. Legacy modes: karaoke, solid, dim, ghostline,
+  // wordbox. "karaoke" with animMode "fill" is the progressive-reveal
+  // behavior, which maps cleanly onto our new BUILD preset. All other
+  // karaoke variants → row, "solid" → punch, "wordbox" → pill.
+  const modeMap = {
+    karaoke: 'row',
+    dim: 'row',
+    solid: 'punch',
+    wordbox: 'pill',
+    ghostline: 'row',
+  };
+  let preset = modeMap[legacy.mode] || 'row';
+  if(legacy.mode === 'karaoke' && legacy.animMode === 'fill'){
+    preset = 'build';
+  }
+
+  const out = {
+    _wordpunch: true,
+    _version: 2,
+    name: legacy.name || 'Imported v1 preset',
+
+    preset,
+    wpc: legacy.wpc ?? 2,
+    allCaps: !!legacy.caps,
+    vpos: legacy.vpos || 'bottom',
+    ar: legacy.ar || '9:16',
+    size: legacy.size ?? 70,
+    letterSpacing: legacy.letterSpacing ?? 0,
+
+    fontFamily: legacy.font || 'Inter',
+    fontWeight: '900',
+
+    baseColor: legacy.base || '#FFFFFF',
+    hiColor: legacy.hi || '#FFD700',
+    pillTextColor: '#000000',
+
+    // Build preset defaults — for legacy fill mode, the unrevealed words
+    // were typically dim/transparent. Use the v1 base color as the pre-reveal
+    // color at low opacity (so the layout still shows but de-emphasized) if
+    // we're migrating to build.
+    preRevealColor: preset === 'build' ? (legacy.base || '#888888') : '#888888',
+    preRevealOpacity: preset === 'build' ? 30 : 30,
+
+    stroke: !!legacy.stroke,
+    strokeW: legacy.strokeW ?? 6,
+
+    shadow: !!legacy.shadow,
+    shadowBlur: legacy.shadowBlur ?? 12,
+    shadowY: 4,
+
+    bgBox: !!legacy.bg,
+    bgBoxColor: legacy.bgColor || '#000000',
+    bgBoxOpacity: legacy.bgOp ?? 70,
+    bgBoxOffsetY: -10,
+    bgBoxPad: 45,
+    bgBoxRadius: 20,
+
+    wrap: !!legacy.wrapEnabled,
+    wrapW: legacy.wrapWidth ?? 80,
+
+    exportFmt: legacy.exportFmt || 'mp4',
+    fps: '30',
+    bgMode: 'green',
+
+    captionText: null,
+    customFont: null,
+  };
+
+  // Legacy custom font — pass through. Same shape: {name, ext, data(base64)}
+  if(legacy.customFont && legacy.customFont.data){
+    out.customFont = {
+      name: legacy.customFont.name || 'Custom Font',
+      ext: legacy.customFont.ext || 'ttf',
+      data: legacy.customFont.data,
+    };
+    out.fontFamily = legacy.customFont.name || out.fontFamily;
+  }
+  return out;
+}
+
+// --- Save ---
+// If a custom font is currently active, we can't re-read its bytes from
+// document.fonts — those bytes were consumed when we called FontFace(). To
+// preserve custom-font roundtripping we stash the ArrayBuffer at upload time.
+const customFontBytes = {}; // name -> base64
+
+async function saveCurrentPreset(){
+  const p = buildPreset();
+  // If current font is a custom one and we have its bytes, embed them.
+  if(customFonts.has(el.fontFamily.value) && customFontBytes[el.fontFamily.value]){
+    p.customFont = {
+      name: el.fontFamily.value,
+      ext: 'ttf',
+      data: customFontBytes[el.fontFamily.value],
+    };
+  }
+  const json = JSON.stringify(p, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wordpunch_preset.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  el.presetStatus.textContent = '✓ Preset saved';
+  setTimeout(() => { el.presetStatus.textContent = ''; }, 2500);
+  return json;
+}
+
+// --- Load ---
+let pendingImport = null; // {preset, hasText, hasFont}
+
+function openImportDialog(preset){
+  const hasText = !!(preset.captionText && preset.captionText.trim());
+  const hasFont = !!(preset.customFont && preset.customFont.data);
+  pendingImport = { preset, hasText, hasFont };
+
+  const parts = [];
+  parts.push(`<b>${escapeHtml(preset.name || 'Preset')}</b>`);
+  if(preset._version === 1 || !preset._version){
+    parts.push(`<span style="color:var(--accent-hi)">Legacy v1 — will be migrated</span>`);
+  }
+  parts.push(`Style: ${preset.preset || '—'} · Font: ${preset.fontFamily || '—'}`);
+  if(hasFont) parts.push(`✓ Embedded custom font: ${preset.customFont.name}`);
+  if(hasText) parts.push(`✓ Caption text included`);
+  el.importSummary.innerHTML = parts.join('<br>');
+
+  // If there's no text in the preset, hide that toggle by disabling
+  el.importTextTog.style.opacity = hasText ? '1' : '0.35';
+  el.importTextTog.style.pointerEvents = hasText ? '' : 'none';
+  setTog(el.importTextTog, false); // default off per request
+  el.importFontTog.style.opacity = hasFont ? '1' : '0.35';
+  el.importFontTog.style.pointerEvents = hasFont ? '' : 'none';
+  setTog(el.importFontTog, hasFont);
+
+  el.importDialog.classList.add('show');
+}
+function closeImportDialog(){
+  el.importDialog.classList.remove('show');
+  pendingImport = null;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// Click the two togs in the dialog
+el.importTextTog.addEventListener('click', () => {
+  if(el.importTextTog.style.pointerEvents === 'none') return;
+  setTog(el.importTextTog, !getTog(el.importTextTog));
+});
+el.importFontTog.addEventListener('click', () => {
+  if(el.importFontTog.style.pointerEvents === 'none') return;
+  setTog(el.importFontTog, !getTog(el.importFontTog));
+});
+el.importCancelBtn.addEventListener('click', closeImportDialog);
+el.importApplyBtn.addEventListener('click', () => {
+  if(!pendingImport) { closeImportDialog(); return; }
+  const { preset } = pendingImport;
+  const importText = getTog(el.importTextTog);
+  const importFont = getTog(el.importFontTog);
+  closeImportDialog();
+  const isLegacy = preset._version === 1 || !preset._version;
+  const applied = isLegacy ? migrateLegacyPreset(preset) : preset;
+  applyPreset(applied, { importText, importFont });
+  el.presetStatus.textContent = isLegacy ? '✓ Imported (v1 → v2 migrated)' : '✓ Preset loaded';
+  setTimeout(() => { el.presetStatus.textContent = ''; }, 3000);
+});
+
+function loadPresetFromFile(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const obj = JSON.parse(e.target.result);
+      if(!obj._wordpunch){
+        alert('Not a WordPunch preset file.');
+        return;
+      }
+      openImportDialog(obj);
+    } catch(err){
+      alert('Could not parse preset: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+el.savePresetBtn.addEventListener('click', saveCurrentPreset);
+el.loadPresetBtn.addEventListener('click', () => el.presetFileInput.click());
+el.resetPresetBtn.addEventListener('click', () => {
+  resetToPresetDefaults();
+  el.presetStatus.textContent = `✓ Reset to ${S.preset.toUpperCase()} defaults`;
+  setTimeout(() => { el.presetStatus.textContent = ''; }, 2500);
+});
+el.presetFileInput.addEventListener('change', e => {
+  if(e.target.files[0]) loadPresetFromFile(e.target.files[0]);
+  el.presetFileInput.value = '';
+});
+
+// Hook into custom font upload to stash bytes for later preset save.
+// We wrap the existing handleCustomFontFile to also cache the base64.
+const _origHandleCustomFontFile = handleCustomFontFile;
+handleCustomFontFile = async function(file){
+  const buf = await file.arrayBuffer();
+  // base64 encode
+  let bin = '';
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  for(let i=0; i<bytes.length; i+=chunk){
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+  }
+  const b64 = btoa(bin);
+  // Call original (it expects File, so pass a synthetic one with same data
+  // — actually the original reads file.arrayBuffer() and file.name, both of
+  // which our File has. Just call it.)
+  await _origHandleCustomFontFile(file);
+  // After it runs, el.fontFamily.value is the registered name. Stash.
+  if(customFonts.has(el.fontFamily.value)){
+    customFontBytes[el.fontFamily.value] = b64;
+  }
+};
+el.fontFileInput.removeEventListener('change', null); // no-op; just to be safe
+// Re-bind since we replaced the function reference:
+el.fontFileInput.onchange = e => {
+  if(e.target.files[0]) handleCustomFontFile(e.target.files[0]);
+  el.fontFileInput.value = '';
+};
+
+// Render button: runs export then auto-saves the preset alongside output.
+el.renderBtn.textContent = el.exportFmt.value === 'png' ? 'Export PNG Sequence' : 'Export MP4';
+el.renderBtn.addEventListener('click', async () => {
+  if(el.exportFmt.value === 'png') await renderPngZip();
+  else await renderMP4();
+  // Always also download a preset snapshot next to the render
+  try { await saveCurrentPreset(); } catch(err){ console.warn('Preset side-save failed:', err); }
+});
+
+/* ---------- init ---------- */
+applyAspect();
+el.renderBtn.textContent = el.exportFmt.value === 'png' ? 'Export PNG Sequence' : 'Export MP4';
+// Preload the default font so the first render uses real glyphs.
+(async () => {
+  await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+  draw();
+})();
 </script>
+
+
 </body>
 </html>
