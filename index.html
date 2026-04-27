@@ -772,6 +772,16 @@ async function handleCustomFontFile(file){
     loadedFonts.add(`700 "${finalName}"`);
     loadedFonts.add(`900 "${finalName}"`);
 
+    // Cache the bytes as base64 so preset save can re-embed this font.
+    // Do it from the same ArrayBuffer we already read — no second read.
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    const CHUNK = 0x8000;
+    for(let i=0; i<bytes.length; i+=CHUNK){
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i+CHUNK));
+    }
+    customFontBytes[finalName] = btoa(bin);
+
     // Add to the Custom optgroup in the select.
     el.customFontGroup.style.display = '';
     const opt = document.createElement('option');
@@ -1897,7 +1907,8 @@ function applyPreset(p, opts){
       for(let i=0; i<bin.length; i++) view[i] = bin.charCodeAt(i);
       const familyName = p.customFont.name || 'Custom Font';
 
-      // If already registered, skip
+      // If already registered, skip face creation but still ensure bytes
+      // are cached so a subsequent preset save can re-embed the font.
       if(!customFonts.has(familyName)){
         const face = new FontFace(familyName, buf);
         await face.load();
@@ -1912,6 +1923,9 @@ function applyPreset(p, opts){
         opt.textContent = familyName;
         el.customFontGroup.appendChild(opt);
       }
+      // CRITICAL: cache the base64 so saving a preset later still embeds
+      // the font, even if the user never re-uploaded it through the UI.
+      customFontBytes[familyName] = p.customFont.data;
       // Now set the dropdown to it
       el.fontFamily.value = familyName;
     } catch(err){
@@ -2136,35 +2150,6 @@ el.presetFileInput.addEventListener('change', e => {
   if(e.target.files[0]) loadPresetFromFile(e.target.files[0]);
   el.presetFileInput.value = '';
 });
-
-// Hook into custom font upload to stash bytes for later preset save.
-// We wrap the existing handleCustomFontFile to also cache the base64.
-const _origHandleCustomFontFile = handleCustomFontFile;
-handleCustomFontFile = async function(file){
-  const buf = await file.arrayBuffer();
-  // base64 encode
-  let bin = '';
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  for(let i=0; i<bytes.length; i+=chunk){
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
-  }
-  const b64 = btoa(bin);
-  // Call original (it expects File, so pass a synthetic one with same data
-  // — actually the original reads file.arrayBuffer() and file.name, both of
-  // which our File has. Just call it.)
-  await _origHandleCustomFontFile(file);
-  // After it runs, el.fontFamily.value is the registered name. Stash.
-  if(customFonts.has(el.fontFamily.value)){
-    customFontBytes[el.fontFamily.value] = b64;
-  }
-};
-el.fontFileInput.removeEventListener('change', null); // no-op; just to be safe
-// Re-bind since we replaced the function reference:
-el.fontFileInput.onchange = e => {
-  if(e.target.files[0]) handleCustomFontFile(e.target.files[0]);
-  el.fontFileInput.value = '';
-};
 
 // Render button: runs export then auto-saves the preset alongside output.
 el.renderBtn.textContent = el.exportFmt.value === 'png' ? 'Export PNG Sequence' : 'Export MP4';
