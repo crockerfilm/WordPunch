@@ -395,6 +395,13 @@
         <div class="range-val" id="popDurVal">240ms</div>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4">Pop = an emphasis pulse on the word being spoken right now. Set to 1.00× to turn it off.</div>
+
+      <div class="range-row" style="margin-top:14px">
+        <label>Stay on screen</label>
+        <input type="range" id="holdTime" min="0" max="3000" step="50" value="500">
+        <div class="range-val" id="holdTimeVal">0.5s</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4">Extra time a caption lingers after the words stop, to ride through pauses and gaps. Automatically cut short the moment the next caption starts, so they never overlap. 0 = disappear the instant the words end.</div>
     </div>
 
     <div class="sec">
@@ -597,6 +604,8 @@ const el = {
   popScaleVal: qs('#popScaleVal'),
   popDur: qs('#popDur'),
   popDurVal: qs('#popDurVal'),
+  holdTime: qs('#holdTime'),
+  holdTimeVal: qs('#holdTimeVal'),
   // layout
   ar: qs('#ar'),
   size: qs('#size'),
@@ -636,17 +645,17 @@ const el = {
 
 const PRESETS = {
   row:   { wpc:4, mode:'row',   stroke:true,  strokeW:6,  base:'#FFFFFF', hi:'#FFD700',
-           anim:{entrance:'none',      dur:240, slide:40, ease:'easeout', popScale:118, popDur:240} },
+           anim:{entrance:'none',      dur:240, slide:40, ease:'easeout', popScale:118, popDur:240, hold:500} },
   punch: { wpc:1, mode:'punch', stroke:true,  strokeW:8,  base:'#FFFFFF', hi:'#FFD700',
-           anim:{entrance:'scale',     dur:190, slide:40, ease:'back',    popScale:100, popDur:200} },
+           anim:{entrance:'scale',     dur:190, slide:40, ease:'back',    popScale:100, popDur:200, hold:400} },
   pill:  { wpc:4, mode:'pill',  stroke:false, strokeW:0,  base:'#FFFFFF', hi:'#FFD700', pillText:'#000000',
-           anim:{entrance:'none',      dur:240, slide:40, ease:'easeout', popScale:112, popDur:240} },
+           anim:{entrance:'none',      dur:240, slide:40, ease:'easeout', popScale:112, popDur:240, hold:500} },
   build: { wpc:5, mode:'build', stroke:false, strokeW:0,  base:'#FFFFFF', hi:'#FFD700', preColor:'#888888', preOpacity:30,
-           anim:{entrance:'slide',     dur:220, slide:36, ease:'easeout', popScale:100, popDur:200} },
+           anim:{entrance:'slide',     dur:220, slide:36, ease:'easeout', popScale:100, popDur:200, hold:800} },
 };
 
 // Default animation config used as a fallback (e.g. legacy presets).
-const ANIM_FALLBACK = {entrance:'none', dur:240, slide:40, ease:'easeout', popScale:100, popDur:240};
+const ANIM_FALLBACK = {entrance:'none', dur:240, slide:40, ease:'easeout', popScale:100, popDur:240, hold:500};
 
 // Full default-state map for each preset. Used by the "Reset to preset
 // default" button to put EVERY control back to a sensible starting point
@@ -708,6 +717,8 @@ function applyAnimDefaults(a){
   el.animEase.value = a.ease;
   el.popScale.value = String(a.popScale); el.popScaleVal.textContent = (a.popScale/100).toFixed(2) + '×';
   el.popDur.value = String(a.popDur);     el.popDurVal.textContent = a.popDur + 'ms';
+  const hold = (a.hold != null) ? a.hold : 500;
+  el.holdTime.value = String(hold);       el.holdTimeVal.textContent = (hold/1000).toFixed(1) + 's';
 }
 
 // Apply preset defaults to all the UI controls. Doesn't touch font / aspect /
@@ -1028,8 +1039,17 @@ function fmtTC(t){
 
 /* ---------- active group / word ---------- */
 function getActiveGroup(t){
-  for(const g of S.groups){
-    if(t >= g.start && t < g.end) return g;
+  // "Stay on screen" hold: keep the current caption up for up to holdSec past
+  // its last word, so it rides through pauses instead of blinking out. The
+  // hold is capped at the next group's start so captions never overlap.
+  const holdSec = (el.holdTime ? (+el.holdTime.value || 0) : 0) / 1000;
+  for(let i=0; i<S.groups.length; i++){
+    const g = S.groups[i];
+    if(t < g.start) continue;
+    const next = S.groups[i+1];
+    const cap = next ? next.start : Infinity;
+    const holdEnd = Math.min(g.end + holdSec, cap);
+    if(t < holdEnd) return g;
   }
   return null;
 }
@@ -1653,6 +1673,13 @@ el.popScale.addEventListener('input', updatePopScale);
 el.popScale.addEventListener('change', updatePopScale);
 el.animEntrance.addEventListener('change', draw);
 el.animEase.addEventListener('change', draw);
+// Stay-on-screen hold displays in seconds.
+const updateHold = () => {
+  el.holdTimeVal.textContent = (+el.holdTime.value / 1000).toFixed(1) + 's';
+  draw();
+};
+el.holdTime.addEventListener('input', updateHold);
+el.holdTime.addEventListener('change', updateHold);
 
 // --- BG box color ---
 el.bgBoxColor.addEventListener('input', draw);
@@ -2083,6 +2110,7 @@ function buildPreset(){
     animEase: el.animEase.value,
     popScale: +el.popScale.value,
     popDur: +el.popDur.value,
+    holdTime: +el.holdTime.value,
 
     // Export
     exportFmt: el.exportFmt.value,
@@ -2187,6 +2215,11 @@ function applyPreset(p, opts){
     el.popScaleVal.textContent = (ps/100).toFixed(2) + '×';
   }
   setNum(el.popDur, el.popDurVal, p.popDur != null ? p.popDur : animFallback.popDur, 'ms');
+  {
+    const h = (p.holdTime != null) ? p.holdTime : (animFallback.hold != null ? animFallback.hold : 500);
+    el.holdTime.value = String(h);
+    el.holdTimeVal.textContent = (h/1000).toFixed(1) + 's';
+  }
 
   setVal(el.exportFmt, p.exportFmt);
   setVal(el.fps, p.fps);
@@ -2321,6 +2354,7 @@ function migrateLegacyPreset(legacy){
     animEase:     ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).ease,
     popScale:     ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).popScale,
     popDur:       ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).popDur,
+    holdTime:     ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).hold,
 
     exportFmt: legacy.exportFmt || 'mp4',
     fps: '30',
