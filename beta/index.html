@@ -1,0 +1,2479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WordPunch — Caption Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Anton&family=Bebas+Neue&family=Archivo+Black&family=Montserrat:wght@700;900&family=Oswald:wght@500;700&family=Poppins:wght@700;900&family=Permanent+Marker&family=Luckiest+Guy&family=Passion+One:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0e0e; --panel:#1a1a1a; --panel2:#222; --line:#2a2a2a;
+    --text:#eee; --muted:#888; --accent:#5d2de6; --accent-hi:#7241ff;
+    --good:#5be5a0; --bad:#ff5b5b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px}
+  .app{display:grid;grid-template-columns:360px 1fr;height:100vh;overflow:hidden}
+  .side{background:var(--panel);border-right:1px solid var(--line);padding:18px;padding-right:14px;overflow-y:scroll;height:100vh;scrollbar-gutter:stable}
+  /* Style the scrollbar so it's visible but unobtrusive */
+  .side::-webkit-scrollbar{width:10px}
+  .side::-webkit-scrollbar-track{background:transparent}
+  .side::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;border:2px solid var(--panel)}
+  .side::-webkit-scrollbar-thumb:hover{background:#3a3a3a}
+  .main{padding:18px;display:flex;flex-direction:column;gap:14px;height:100vh;overflow:hidden;min-height:0}
+  h1{margin:0 0 4px;font-size:18px;font-weight:700;letter-spacing:-0.01em}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+
+  .sec{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+  .sec:last-child{border:0}
+  .sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+  label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+  select,input[type=text],input[type=number]{
+    width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit
+  }
+  input[type=color]{width:40px;height:32px;background:transparent;border:1px solid var(--line);border-radius:6px;padding:2px;cursor:pointer}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .row > div{flex:1}
+  .presets{display:grid;grid-template-columns:1fr;gap:8px}
+  .preset{
+    padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    cursor:pointer;transition:all .15s;
+  }
+  .preset:hover{border-color:var(--accent-hi)}
+  .preset.active{border-color:var(--accent);background:rgba(93,45,230,.12)}
+  .preset-name{font-weight:700;font-size:13px;margin-bottom:2px}
+  .preset-desc{font-size:11px;color:var(--muted)}
+  button{
+    background:var(--accent);color:white;border:0;border-radius:6px;padding:10px 14px;
+    font-size:13px;font-weight:600;cursor:pointer;font-family:inherit
+  }
+  button:hover{background:var(--accent-hi)}
+  button.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+  button.ghost:hover{border-color:var(--accent-hi)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+
+  .canvas-wrap{
+    position:relative;background:#000;border:1px solid var(--line);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;flex:1 1 auto;min-height:0;overflow:hidden
+  }
+  canvas{max-width:100%;max-height:100%;display:block;object-fit:contain}
+
+  .controls{display:flex;gap:8px;align-items:center;background:var(--panel);padding:10px;border-radius:8px;border:1px solid var(--line);flex:0 0 auto}
+  .tc{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);min-width:70px}
+  .scrub{flex:1;accent-color:var(--accent)}
+
+  .dropzone{
+    border:2px dashed var(--line);border-radius:8px;padding:24px 12px;text-align:center;
+    color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s
+  }
+  .dropzone:hover,.dropzone.drag{border-color:var(--accent);color:var(--text);background:rgba(93,45,230,.06)}
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:1000
+  }
+  .overlay.show{display:flex}
+  .overlay-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px;min-width:300px;text-align:center}
+  .bar{width:100%;height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:10px}
+  .bar-fill{height:100%;background:var(--accent);width:0%;transition:width .2s}
+
+  .stats{font-size:11px;color:var(--muted);padding:8px;background:var(--panel2);border-radius:6px;margin-top:8px}
+  .stats b{color:var(--text)}
+
+  .pill-color-row{display:none}
+  .pill-color-row.show{display:flex}
+  .build-row{display:none}
+  .build-row.show{display:flex}
+
+  /* Toggle switch */
+  .tog-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;gap:10px}
+  .tog-row > .tog-label{flex:1;min-width:0}
+  .tog-row > .tog-label > div:first-child{font-size:13px;color:var(--text)}
+  .tog-row > .tog-label > div:last-child{font-size:11px;color:var(--muted);margin-top:2px}
+  .tog{
+    position:relative;width:38px;height:22px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:11px;cursor:pointer;flex:0 0 auto;transition:all .15s
+  }
+  .tog::after{
+    content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#666;
+    border-radius:50%;transition:all .15s
+  }
+  .tog.on{background:var(--accent);border-color:var(--accent)}
+  .tog.on::after{background:#fff;left:18px}
+  .sub-opts{padding:10px 12px;background:var(--panel2);border-radius:6px;margin-top:4px;border:1px solid var(--line)}
+  .range-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .range-row label{flex:0 0 auto;margin:0;min-width:62px;max-width:62px;font-size:10px}
+  .range-row input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+  .range-val{font-family:ui-monospace,monospace;font-size:11px;color:var(--text);flex:0 0 auto;min-width:38px;text-align:right;white-space:nowrap}
+
+  /* Text editor (nested) */
+  details.editor-wrap{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:0}
+  details.editor-wrap[open]{padding-bottom:10px}
+  details.editor-wrap > summary{
+    padding:10px 12px;cursor:pointer;font-size:12px;font-weight:600;user-select:none;
+    display:flex;align-items:center;gap:6px;list-style:none
+  }
+  details.editor-wrap > summary::-webkit-details-marker{display:none}
+  details.editor-wrap > summary::before{content:'▸';font-size:10px;transition:transform .15s;color:var(--muted)}
+  details.editor-wrap[open] > summary::before{transform:rotate(90deg)}
+  details.editor-wrap > summary .badge{
+    margin-left:auto;font-size:10px;padding:2px 6px;border-radius:3px;
+    background:rgba(93,45,230,.2);color:var(--accent-hi);font-weight:700
+  }
+  details.editor-wrap > summary .badge.manual{background:rgba(255,193,7,.2);color:#ffc107}
+  .editor-box{padding:0 12px}
+  .editor-box textarea{
+    width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:6px;padding:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px;
+    min-height:100px;max-height:200px;resize:vertical
+  }
+  .editor-box .hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4}
+  .editor-box button{padding:6px 10px;font-size:11px;margin-top:6px;margin-right:6px}
+  .editor-box .stats{margin-top:6px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <h1>WordPunch <span style="color:var(--accent);font-weight:600;font-size:12px;vertical-align:super">V2</span></h1>
+    <div class="sub">SRT or JSON transcript → punchy caption video</div>
+
+    <div class="sec">
+      <div class="sec-title">1. Load SRT or JSON</div>
+      <div id="drop" class="dropzone">
+        <div><b>Drop SRT or JSON here</b></div>
+        <div style="margin-top:4px">or click to browse</div>
+      </div>
+      <input type="file" id="fileInput" accept=".srt,.json,application/json" style="display:none">
+      <div class="stats" id="stats" style="display:none"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">2. Style</div>
+      <div class="presets">
+        <div class="preset active" data-preset="row">
+          <div class="preset-name">ROW</div>
+          <div class="preset-desc">4 words across · yellow highlight</div>
+        </div>
+        <div class="preset" data-preset="punch">
+          <div class="preset-name">PUNCH</div>
+          <div class="preset-desc">One word pop · MrBeast style</div>
+        </div>
+        <div class="preset" data-preset="pill">
+          <div class="preset-name">PILL</div>
+          <div class="preset-desc">4 words across · pill highlight</div>
+        </div>
+        <div class="preset" data-preset="build">
+          <div class="preset-name">BUILD</div>
+          <div class="preset-desc">Words fade in as sentence builds</div>
+        </div>
+      </div>
+      <button class="ghost" id="resetPresetBtn" style="width:100%;margin-top:8px;padding:7px;font-size:11px">↺ Reset to preset default</button>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">3. Font</div>
+      <div class="row">
+        <div>
+          <label>Family</label>
+          <select id="fontFamily">
+            <optgroup label="Bold display">
+              <option value="Anton">Anton</option>
+              <option value="Archivo Black">Archivo Black</option>
+              <option value="Bebas Neue">Bebas Neue</option>
+              <option value="Passion One">Passion One</option>
+              <option value="Luckiest Guy">Luckiest Guy</option>
+              <option value="Permanent Marker">Permanent Marker</option>
+            </optgroup>
+            <optgroup label="Sans">
+              <option value="Inter" selected>Inter</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Oswald">Oswald</option>
+              <option value="Poppins">Poppins</option>
+            </optgroup>
+            <optgroup label="Custom" id="customFontGroup" style="display:none">
+              <!-- populated when user uploads -->
+            </optgroup>
+          </select>
+        </div>
+        <div style="flex:0 0 auto">
+          <label>Weight</label>
+          <select id="fontWeight">
+            <option value="400">400</option>
+            <option value="700">700</option>
+            <option value="900" selected>900</option>
+          </select>
+        </div>
+      </div>
+      <button class="ghost" id="uploadFontBtn" style="width:100%;padding:8px 10px;font-size:12px">+ Upload custom font (.ttf / .otf / .woff / .woff2)</button>
+      <input type="file" id="fontFileInput" accept=".ttf,.otf,.woff,.woff2,font/*" style="display:none">
+      <div id="fontStatus" style="font-size:11px;color:var(--muted);margin-top:6px;min-height:14px"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">4. Colors</div>
+      <div class="row">
+        <div>
+          <label>Text</label>
+          <input type="color" id="baseColor" value="#FFFFFF">
+        </div>
+        <div>
+          <label>Highlight</label>
+          <input type="color" id="hiColor" value="#FFD700">
+        </div>
+      </div>
+      <div class="row pill-color-row" id="pillColorRow">
+        <div>
+          <label>Pill text color</label>
+          <input type="color" id="pillTextColor" value="#000000">
+        </div>
+      </div>
+      <div class="row build-row" id="buildRow">
+        <div>
+          <label>Pre-reveal color</label>
+          <input type="color" id="preRevealColor" value="#888888">
+        </div>
+      </div>
+      <div class="range-row build-row" id="buildOpacityRow">
+        <label>Pre-reveal opacity</label>
+        <input type="range" id="preRevealOpacity" min="0" max="100" step="5" value="30">
+        <div class="range-val" id="preRevealOpacityVal">30%</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">5. Text Options</div>
+
+      <div class="row">
+        <div>
+          <label>Font Size</label>
+          <input type="number" id="size" value="70" min="12" max="300" step="1">
+        </div>
+        <div>
+          <label>Words / Caption</label>
+          <select id="wpc">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>ALL CAPS</div><div>uppercase every word</div></div>
+        <div class="tog on" id="tAllCaps"></div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>Text Stroke</div><div>black outline around letters</div></div>
+        <div class="tog on" id="tStroke"></div>
+      </div>
+      <div class="sub-opts" id="strokeOpts">
+        <div class="range-row">
+          <label>Width</label>
+          <input type="range" id="strokeW" min="1" max="16" step="1" value="6">
+          <div class="range-val" id="strokeWVal">6</div>
+        </div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>Drop Shadow</div><div>soft shadow behind text</div></div>
+        <div class="tog" id="tShadow"></div>
+      </div>
+      <div class="sub-opts" id="shadowOpts" style="display:none">
+        <div class="range-row">
+          <label>Blur</label>
+          <input type="range" id="shadowBlur" min="0" max="40" step="1" value="12">
+          <div class="range-val" id="shadowBlurVal">12</div>
+        </div>
+        <div class="range-row">
+          <label>Offset Y</label>
+          <input type="range" id="shadowY" min="-20" max="20" step="1" value="4">
+          <div class="range-val" id="shadowYVal">4</div>
+        </div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>Background Box</div><div>solid box behind the whole line</div></div>
+        <div class="tog" id="tBgBox"></div>
+      </div>
+      <div class="sub-opts" id="bgBoxOpts" style="display:none">
+        <div class="row">
+          <div>
+            <label>Color</label>
+            <input type="color" id="bgBoxColor" value="#000000">
+          </div>
+        </div>
+        <div class="range-row">
+          <label>Opacity</label>
+          <input type="range" id="bgBoxOpacity" min="0" max="100" step="5" value="70">
+          <div class="range-val" id="bgBoxOpacityVal">70</div>
+        </div>
+        <div class="range-row">
+          <label>Offset Y</label>
+          <input type="range" id="bgBoxOffsetY" min="-60" max="60" step="1" value="-10">
+          <div class="range-val" id="bgBoxOffsetYVal">-10px</div>
+        </div>
+        <div class="range-row">
+          <label>Padding</label>
+          <input type="range" id="bgBoxPad" min="10" max="120" step="2" value="45">
+          <div class="range-val" id="bgBoxPadVal">45</div>
+        </div>
+        <div class="range-row">
+          <label>Rounding</label>
+          <input type="range" id="bgBoxRadius" min="0" max="100" step="2" value="20">
+          <div class="range-val" id="bgBoxRadiusVal">20</div>
+        </div>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-label"><div>Word Wrap</div><div>break long captions into multiple lines</div></div>
+        <div class="tog" id="tWrap"></div>
+      </div>
+      <div class="sub-opts" id="wrapOpts" style="display:none">
+        <div class="range-row">
+          <label>Max width</label>
+          <input type="range" id="wrapW" min="40" max="95" step="5" value="80">
+          <div class="range-val" id="wrapWVal">80%</div>
+        </div>
+      </div>
+
+      <div class="range-row" style="margin-top:10px">
+        <label>Letter Spacing</label>
+        <input type="range" id="letterSpacing" min="-5" max="15" step="1" value="0">
+        <div class="range-val" id="letterSpacingVal">0px</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">6. Animation</div>
+
+      <label>Entrance</label>
+      <select id="animEntrance">
+        <option value="none">None (instant)</option>
+        <option value="fade">Fade in</option>
+        <option value="slide">Slide up</option>
+        <option value="slidefade">Slide up + fade</option>
+        <option value="scale">Scale / pop in</option>
+      </select>
+      <div style="font-size:11px;color:var(--muted);margin:5px 0 10px;line-height:1.4">How each word (PUNCH / BUILD) or the whole caption (ROW / PILL) appears on screen.</div>
+
+      <div class="range-row">
+        <label>Speed</label>
+        <input type="range" id="animDur" min="60" max="700" step="10" value="240">
+        <div class="range-val" id="animDurVal">240ms</div>
+      </div>
+      <div class="range-row">
+        <label>Slide dist</label>
+        <input type="range" id="animSlide" min="0" max="160" step="4" value="40">
+        <div class="range-val" id="animSlideVal">40px</div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div>
+          <label>Easing</label>
+          <select id="animEase">
+            <option value="easeout">Smooth (ease out)</option>
+            <option value="back">Overshoot (snappy)</option>
+            <option value="bounce">Bounce</option>
+            <option value="linear">Linear</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="range-row" style="margin-top:14px">
+        <label>Active pop</label>
+        <input type="range" id="popScale" min="100" max="160" step="2" value="118">
+        <div class="range-val" id="popScaleVal">1.18×</div>
+      </div>
+      <div class="range-row">
+        <label>Pop speed</label>
+        <input type="range" id="popDur" min="80" max="500" step="10" value="240">
+        <div class="range-val" id="popDurVal">240ms</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4">Pop = an emphasis pulse on the word being spoken right now. Set to 1.00× to turn it off.</div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">7. Layout</div>
+      <div class="row">
+        <div>
+          <label>Aspect</label>
+          <select id="ar">
+            <option value="9:16" selected>9:16 (vertical)</option>
+            <option value="1:1">1:1 (square)</option>
+            <option value="16:9">16:9 (horizontal)</option>
+          </select>
+        </div>
+        <div>
+          <label>Vertical Position</label>
+          <select id="vpos">
+            <option value="top">Top</option>
+            <option value="center">Center</option>
+            <option value="bottom" selected>Bottom</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">8. Caption Editor</div>
+      <details class="editor-wrap">
+        <summary>
+          Edit captions
+          <span class="badge" id="editorBadge">AUTO</span>
+        </summary>
+        <div class="editor-box">
+          <textarea id="captionEditor" placeholder="Load an SRT to see captions here. One line = one caption group. You can re-order, re-group, or edit text — timing stays linked to the original words."></textarea>
+          <div class="stats" id="editorStats" style="font-size:11px;color:var(--muted);padding:6px 0"></div>
+          <div>
+            <button id="editorReflow" class="ghost">↻ Re-flow from WPC</button>
+            <button id="editorReset" class="ghost">Reset (1/line)</button>
+          </div>
+          <div class="hint">One caption group per line. Edit word text to re-word. Leave word count the same or the editor will flag a mismatch.</div>
+        </div>
+      </details>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">9. Presets</div>
+      <div class="row" style="gap:8px">
+        <button class="ghost" id="savePresetBtn" style="flex:1;padding:8px">⬇ Save preset</button>
+        <button class="ghost" id="loadPresetBtn" style="flex:1;padding:8px">⬆ Load preset</button>
+      </div>
+      <input type="file" id="presetFileInput" accept=".json,application/json" style="display:none">
+      <div id="presetStatus" style="font-size:11px;color:var(--muted);margin-top:6px;min-height:14px"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">10. Export</div>
+      <div class="row">
+        <div>
+          <label>Format</label>
+          <select id="exportFmt">
+            <option value="mp4" selected>MP4 video</option>
+            <option value="png">PNG sequence (.zip)</option>
+          </select>
+        </div>
+        <div>
+          <label>Frame rate</label>
+          <select id="fps">
+            <option value="24">24 fps</option>
+            <option value="25">25 fps</option>
+            <option value="30" selected>30 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Background</label>
+          <select id="bgMode">
+            <option value="black">Black</option>
+            <option value="green" selected>Green screen</option>
+            <option value="blue">Blue screen</option>
+            <option value="transparent">Transparent (PNG only)</option>
+          </select>
+        </div>
+      </div>
+      <button id="renderBtn" style="width:100%" disabled>Export</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="canvas-wrap">
+      <canvas id="cv" width="1080" height="1920"></canvas>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="ghost">▶</button>
+      <div class="tc" id="tcCur">00:00.00</div>
+      <input type="range" id="scrub" class="scrub" min="0" max="1000" value="0">
+      <div class="tc" id="tcTot">00:00.00</div>
+    </div>
+  </main>
+</div>
+
+<div class="overlay" id="importDialog">
+  <div class="overlay-box" style="text-align:left;min-width:340px;max-width:420px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px">Import preset</div>
+    <div id="importSummary" style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5"></div>
+    <div class="tog-row" style="padding:0;margin-bottom:6px">
+      <div class="tog-label">
+        <div>Import caption text</div>
+        <div>include edited caption lines from the preset</div>
+      </div>
+      <div class="tog" id="importTextTog"></div>
+    </div>
+    <div class="tog-row" style="padding:0;margin-bottom:14px">
+      <div class="tog-label">
+        <div>Import custom font</div>
+        <div>register the font file if one is embedded</div>
+      </div>
+      <div class="tog on" id="importFontTog"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="ghost" id="importCancelBtn" style="padding:8px 14px">Cancel</button>
+      <button id="importApplyBtn" style="padding:8px 14px">Import</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov">
+  <div class="overlay-box">
+    <div id="ovTxt">Rendering…</div>
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+  </div>
+</div>
+
+<script>
+/* ========================================================================
+   WordPunch — stripped-down caption maker
+   ======================================================================== */
+
+const qs = s => document.querySelector(s);
+const cv = qs('#cv');
+const ctx = cv.getContext('2d');
+
+const el = {
+  drop: qs('#drop'),
+  fileInput: qs('#fileInput'),
+  stats: qs('#stats'),
+  fontFamily: qs('#fontFamily'),
+  fontWeight: qs('#fontWeight'),
+  uploadFontBtn: qs('#uploadFontBtn'),
+  fontFileInput: qs('#fontFileInput'),
+  fontStatus: qs('#fontStatus'),
+  customFontGroup: qs('#customFontGroup'),
+  baseColor: qs('#baseColor'),
+  hiColor: qs('#hiColor'),
+  pillTextColor: qs('#pillTextColor'),
+  pillColorRow: qs('#pillColorRow'),
+  preRevealColor: qs('#preRevealColor'),
+  preRevealOpacity: qs('#preRevealOpacity'),
+  preRevealOpacityVal: qs('#preRevealOpacityVal'),
+  buildRow: qs('#buildRow'),
+  buildOpacityRow: qs('#buildOpacityRow'),
+  // text options
+  wpc: qs('#wpc'),
+  tAllCaps: qs('#tAllCaps'),
+  tStroke: qs('#tStroke'),
+  strokeW: qs('#strokeW'),
+  strokeWVal: qs('#strokeWVal'),
+  strokeOpts: qs('#strokeOpts'),
+  tShadow: qs('#tShadow'),
+  shadowBlur: qs('#shadowBlur'),
+  shadowBlurVal: qs('#shadowBlurVal'),
+  shadowY: qs('#shadowY'),
+  shadowYVal: qs('#shadowYVal'),
+  shadowOpts: qs('#shadowOpts'),
+  tBgBox: qs('#tBgBox'),
+  bgBoxColor: qs('#bgBoxColor'),
+  bgBoxOpacity: qs('#bgBoxOpacity'),
+  bgBoxOpacityVal: qs('#bgBoxOpacityVal'),
+  bgBoxOffsetY: qs('#bgBoxOffsetY'),
+  bgBoxOffsetYVal: qs('#bgBoxOffsetYVal'),
+  bgBoxPad: qs('#bgBoxPad'),
+  bgBoxPadVal: qs('#bgBoxPadVal'),
+  bgBoxRadius: qs('#bgBoxRadius'),
+  bgBoxRadiusVal: qs('#bgBoxRadiusVal'),
+  bgBoxOpts: qs('#bgBoxOpts'),
+  tWrap: qs('#tWrap'),
+  wrapW: qs('#wrapW'),
+  wrapWVal: qs('#wrapWVal'),
+  wrapOpts: qs('#wrapOpts'),
+  letterSpacing: qs('#letterSpacing'),
+  letterSpacingVal: qs('#letterSpacingVal'),
+  // animation
+  animEntrance: qs('#animEntrance'),
+  animDur: qs('#animDur'),
+  animDurVal: qs('#animDurVal'),
+  animSlide: qs('#animSlide'),
+  animSlideVal: qs('#animSlideVal'),
+  animEase: qs('#animEase'),
+  popScale: qs('#popScale'),
+  popScaleVal: qs('#popScaleVal'),
+  popDur: qs('#popDur'),
+  popDurVal: qs('#popDurVal'),
+  // layout
+  ar: qs('#ar'),
+  size: qs('#size'),
+  vpos: qs('#vpos'),
+  // editor
+  captionEditor: qs('#captionEditor'),
+  editorBadge: qs('#editorBadge'),
+  editorStats: qs('#editorStats'),
+  editorReflow: qs('#editorReflow'),
+  editorReset: qs('#editorReset'),
+  // export
+  exportFmt: qs('#exportFmt'),
+  fps: qs('#fps'),
+  bgMode: qs('#bgMode'),
+  renderBtn: qs('#renderBtn'),
+  // presets
+  savePresetBtn: qs('#savePresetBtn'),
+  loadPresetBtn: qs('#loadPresetBtn'),
+  resetPresetBtn: qs('#resetPresetBtn'),
+  presetFileInput: qs('#presetFileInput'),
+  presetStatus: qs('#presetStatus'),
+  importDialog: qs('#importDialog'),
+  importSummary: qs('#importSummary'),
+  importTextTog: qs('#importTextTog'),
+  importFontTog: qs('#importFontTog'),
+  importCancelBtn: qs('#importCancelBtn'),
+  importApplyBtn: qs('#importApplyBtn'),
+  // playback
+  playBtn: qs('#playBtn'),
+  tcCur: qs('#tcCur'),
+  tcTot: qs('#tcTot'),
+  scrub: qs('#scrub'),
+  ov: qs('#ov'),
+  ovTxt: qs('#ovTxt'),
+  barFill: qs('#barFill'),
+};
+
+const PRESETS = {
+  row:   { wpc:4, mode:'row',   stroke:true,  strokeW:6,  base:'#FFFFFF', hi:'#FFD700',
+           anim:{entrance:'none',      dur:240, slide:40, ease:'easeout', popScale:118, popDur:240} },
+  punch: { wpc:1, mode:'punch', stroke:true,  strokeW:8,  base:'#FFFFFF', hi:'#FFD700',
+           anim:{entrance:'scale',     dur:190, slide:40, ease:'back',    popScale:100, popDur:200} },
+  pill:  { wpc:4, mode:'pill',  stroke:false, strokeW:0,  base:'#FFFFFF', hi:'#FFD700', pillText:'#000000',
+           anim:{entrance:'none',      dur:240, slide:40, ease:'easeout', popScale:112, popDur:240} },
+  build: { wpc:5, mode:'build', stroke:false, strokeW:0,  base:'#FFFFFF', hi:'#FFD700', preColor:'#888888', preOpacity:30,
+           anim:{entrance:'slide',     dur:220, slide:36, ease:'easeout', popScale:100, popDur:200} },
+};
+
+// Default animation config used as a fallback (e.g. legacy presets).
+const ANIM_FALLBACK = {entrance:'none', dur:240, slide:40, ease:'easeout', popScale:100, popDur:240};
+
+// Full default-state map for each preset. Used by the "Reset to preset
+// default" button to put EVERY control back to a sensible starting point
+// for the active preset (not just the few values in PRESETS above).
+// Anything not listed here is left alone on reset.
+const PRESET_DEFAULTS = {
+  row: {
+    wpc: 4, allCaps: true, size: 70, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: true, strokeW: 6,
+    shadow: false, shadowBlur: 12, shadowY: 4,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'bottom',
+  },
+  punch: {
+    wpc: 1, allCaps: true, size: 120, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: true, strokeW: 8,
+    shadow: true, shadowBlur: 20, shadowY: 6,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'center',
+  },
+  pill: {
+    wpc: 4, allCaps: true, size: 70, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: false, strokeW: 6,
+    shadow: false, shadowBlur: 12, shadowY: 4,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'bottom',
+  },
+  build: {
+    wpc: 5, allCaps: false, size: 70, letterSpacing: 0,
+    baseColor: '#FFFFFF', hiColor: '#FFD700', pillTextColor: '#000000',
+    preRevealColor: '#888888', preRevealOpacity: 30,
+    stroke: false, strokeW: 6,
+    shadow: false, shadowBlur: 12, shadowY: 4,
+    bgBox: false, bgBoxColor: '#000000', bgBoxOpacity: 70,
+    bgBoxOffsetY: -10, bgBoxPad: 45, bgBoxRadius: 20,
+    wrap: false, wrapW: 80,
+    vpos: 'bottom',
+  },
+};
+
+// Push an animation config object into the animation controls + labels.
+function applyAnimDefaults(a){
+  a = a || ANIM_FALLBACK;
+  el.animEntrance.value = a.entrance;
+  el.animDur.value = String(a.dur);       el.animDurVal.textContent = a.dur + 'ms';
+  el.animSlide.value = String(a.slide);   el.animSlideVal.textContent = a.slide + 'px';
+  el.animEase.value = a.ease;
+  el.popScale.value = String(a.popScale); el.popScaleVal.textContent = (a.popScale/100).toFixed(2) + '×';
+  el.popDur.value = String(a.popDur);     el.popDurVal.textContent = a.popDur + 'ms';
+}
+
+// Apply preset defaults to all the UI controls. Doesn't touch font / aspect /
+// fps / export format / SRT data / caption editor — those persist across
+// preset changes intentionally.
+function resetToPresetDefaults(){
+  const d = PRESET_DEFAULTS[S.preset];
+  if(!d) return;
+
+  // Animation block resets to the active preset's animation defaults.
+  applyAnimDefaults((PRESETS[S.preset] || {}).anim);
+
+  el.wpc.value = String(d.wpc);
+  setTog(el.tAllCaps, !!d.allCaps);
+  el.size.value = String(d.size);
+  el.letterSpacing.value = String(d.letterSpacing);
+  el.letterSpacingVal.textContent = d.letterSpacing + 'px';
+  el.vpos.value = d.vpos;
+
+  el.baseColor.value = d.baseColor;
+  el.hiColor.value = d.hiColor;
+  el.pillTextColor.value = d.pillTextColor;
+  el.preRevealColor.value = d.preRevealColor;
+  el.preRevealOpacity.value = String(d.preRevealOpacity);
+  el.preRevealOpacityVal.textContent = d.preRevealOpacity + '%';
+
+  setTog(el.tStroke, d.stroke);
+  el.strokeOpts.style.display = d.stroke ? '' : 'none';
+  el.strokeW.value = String(d.strokeW);
+  el.strokeWVal.textContent = String(d.strokeW);
+
+  setTog(el.tShadow, d.shadow);
+  el.shadowOpts.style.display = d.shadow ? '' : 'none';
+  el.shadowBlur.value = String(d.shadowBlur);
+  el.shadowBlurVal.textContent = String(d.shadowBlur);
+  el.shadowY.value = String(d.shadowY);
+  el.shadowYVal.textContent = String(d.shadowY);
+
+  setTog(el.tBgBox, d.bgBox);
+  el.bgBoxOpts.style.display = d.bgBox ? '' : 'none';
+  el.bgBoxColor.value = d.bgBoxColor;
+  el.bgBoxOpacity.value = String(d.bgBoxOpacity);
+  el.bgBoxOpacityVal.textContent = String(d.bgBoxOpacity);
+  el.bgBoxOffsetY.value = String(d.bgBoxOffsetY);
+  el.bgBoxOffsetYVal.textContent = d.bgBoxOffsetY + 'px';
+  el.bgBoxPad.value = String(d.bgBoxPad);
+  el.bgBoxPadVal.textContent = String(d.bgBoxPad);
+  el.bgBoxRadius.value = String(d.bgBoxRadius);
+  el.bgBoxRadiusVal.textContent = String(d.bgBoxRadius);
+
+  setTog(el.tWrap, d.wrap);
+  el.wrapOpts.style.display = d.wrap ? '' : 'none';
+  el.wrapW.value = String(d.wrapW);
+  el.wrapWVal.textContent = d.wrapW + '%';
+
+  // Re-flow groups in case WPC changed and re-draw.
+  S.manualEdit = false;
+  regroup();
+  draw();
+}
+
+const S = {
+  preset: 'row',
+  words: [],      // [{word, start, end}]
+  groups: [],     // [{wt:[...], start, end}]
+  duration: 0,
+  time: 0,
+  playing: false,
+  raf: 0,
+  lastTs: 0,
+  rendering: false,
+  manualEdit: false,
+};
+
+/* ---------- font loading ---------- */
+// Track fonts we've successfully loaded so we don't re-fetch.
+const loadedFonts = new Set();
+// Custom (uploaded) font names.
+const customFonts = new Set();
+
+async function ensureFontLoaded(family, weight){
+  const key = `${weight} "${family}"`;
+  if(loadedFonts.has(key)) return true;
+  if(!document.fonts || !document.fonts.load){
+    // Old browser — just hope the CSS link loaded it.
+    loadedFonts.add(key);
+    return true;
+  }
+  try {
+    // Loading a specific weight+family at a nominal size — the returned
+    // array is the matched FontFace objects. "1em" is just a probe; once
+    // resolved, ctx.font with ANY size will have the glyphs.
+    await document.fonts.load(`${weight} 16px "${family}"`);
+    // Also wait for document.fonts.ready in case the link tag is still
+    // fetching stylesheets for this family.
+    await document.fonts.ready;
+    loadedFonts.add(key);
+    return true;
+  } catch(err){
+    console.warn('Font load failed:', family, weight, err);
+    return false;
+  }
+}
+
+// Called whenever family/weight changes: load the font, then redraw.
+async function handleFontChange(){
+  const family = el.fontFamily.value;
+  const weight = el.fontWeight.value;
+  el.fontStatus.textContent = `Loading ${family}…`;
+  const ok = await ensureFontLoaded(family, weight);
+  if(ok){
+    el.fontStatus.textContent = customFonts.has(family) ? `Custom: ${family}` : '';
+    draw();
+  } else {
+    el.fontStatus.textContent = `⚠ Could not load ${family}`;
+    draw();
+  }
+}
+
+// Handle custom font upload.
+async function handleCustomFontFile(file){
+  el.fontStatus.textContent = `Loading ${file.name}…`;
+  try {
+    const buf = await file.arrayBuffer();
+    // Sanitize the filename into a font-family name. Strip extension,
+    // replace weird chars with spaces, collapse whitespace, trim.
+    let name = file.name.replace(/\.(ttf|otf|woff2?|TTF|OTF|WOFF2?)$/, '')
+      .replace(/[^a-zA-Z0-9\s_-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Custom Font';
+
+    // If the user re-uploads under the same name, append a counter.
+    let finalName = name;
+    let n = 2;
+    while(customFonts.has(finalName)) finalName = `${name} ${n++}`;
+
+    const face = new FontFace(finalName, buf);
+    await face.load();
+    document.fonts.add(face);
+    customFonts.add(finalName);
+    loadedFonts.add(`400 "${finalName}"`);
+    loadedFonts.add(`700 "${finalName}"`);
+    loadedFonts.add(`900 "${finalName}"`);
+
+    // Cache the bytes as base64 so preset save can re-embed this font.
+    // Do it from the same ArrayBuffer we already read — no second read.
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    const CHUNK = 0x8000;
+    for(let i=0; i<bytes.length; i+=CHUNK){
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i+CHUNK));
+    }
+    customFontBytes[finalName] = btoa(bin);
+
+    // Add to the Custom optgroup in the select.
+    el.customFontGroup.style.display = '';
+    const opt = document.createElement('option');
+    opt.value = finalName;
+    opt.textContent = finalName;
+    el.customFontGroup.appendChild(opt);
+
+    // Select it.
+    el.fontFamily.value = finalName;
+    el.fontStatus.textContent = `✓ Loaded: ${finalName}`;
+    draw();
+  } catch(err){
+    console.error(err);
+    el.fontStatus.textContent = `⚠ Failed: ${err.message}`;
+  }
+}
+
+el.fontFamily.addEventListener('change', handleFontChange);
+el.fontWeight.addEventListener('change', handleFontChange);
+el.uploadFontBtn.addEventListener('click', ()=> el.fontFileInput.click());
+el.fontFileInput.addEventListener('change', e => {
+  if(e.target.files[0]) handleCustomFontFile(e.target.files[0]);
+  el.fontFileInput.value = ''; // allow re-upload of same file
+});
+
+/* ---------- aspect / sizing ---------- */
+function applyAspect(){
+  const ar = el.ar.value;
+  if(ar === '9:16'){ cv.width=1080; cv.height=1920; }
+  else if(ar === '1:1'){ cv.width=1080; cv.height=1080; }
+  else { cv.width=1920; cv.height=1080; }
+  draw();
+}
+
+/* ---------- SRT parsing ---------- */
+function parseSRT(text){
+  // Normalize line endings, split into entries on blank lines
+  const blocks = text.replace(/\r\n/g,'\n').split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+  const entries = [];
+  for(const b of blocks){
+    const lines = b.split('\n');
+    // find the timestamp line (contains -->)
+    const tsIdx = lines.findIndex(l => l.includes('-->'));
+    if(tsIdx < 0) continue;
+    const tsLine = lines[tsIdx];
+    const m = tsLine.match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/);
+    if(!m) continue;
+    const start = (+m[1])*3600 + (+m[2])*60 + (+m[3]) + (+m[4])/1000;
+    const end   = (+m[5])*3600 + (+m[6])*60 + (+m[7]) + (+m[8])/1000;
+    const text = lines.slice(tsIdx+1).join(' ').trim();
+    if(text) entries.push({start, end, text});
+  }
+  return entries;
+}
+
+function entriesToWords(entries){
+  const words = [];
+  for(const e of entries){
+    const ws = e.text.split(/\s+/).filter(Boolean);
+    if(!ws.length) continue;
+    const dur = Math.max(0.001, e.end - e.start);
+    const per = dur / ws.length;
+    for(let i=0; i<ws.length; i++){
+      words.push({
+        word: ws[i],
+        start: e.start + i*per,
+        end:   e.start + (i+1)*per,
+      });
+    }
+  }
+  return words;
+}
+
+/* ---------- word-level JSON transcript parsing ---------- */
+// Expects: { language, segments: [ { start, duration, words: [
+//   { text, start, duration, eos, confidence, ... } ] } ] }
+// Unlike SRT, every word carries its own real start+duration, so timing is
+// exact — no interpolation needed. Returns words in the same internal shape
+// the rest of the app uses: {word, start, end}.
+function parseTranscriptJSON(obj){
+  if(!obj || !Array.isArray(obj.segments)){
+    throw new Error('Unrecognized JSON. Expected a transcript with a "segments" array.');
+  }
+  const words = [];
+  for(const seg of obj.segments){
+    if(!seg || !Array.isArray(seg.words)) continue;
+    for(const w of seg.words){
+      // Skip anything explicitly tagged as a non-word token, if present.
+      if(w.type && w.type !== 'word') continue;
+      const txt = (w.text == null ? '' : String(w.text)).trim();
+      if(!txt) continue;
+      const wStart = Number.isFinite(+w.start) ? +w.start : 0;
+      const dur    = Number.isFinite(+w.duration) ? +w.duration : 0;
+      const wEnd   = wStart + dur;
+      // Each entry should be a single whitespace-free token so the caption
+      // editor's word-count math stays aligned. If a token somehow contains
+      // spaces, split it and spread the duration evenly (rare edge case).
+      const toks = txt.split(/\s+/).filter(Boolean);
+      if(toks.length <= 1){
+        words.push({ word: txt, start: wStart, end: wEnd, eos: !!w.eos });
+      } else {
+        const per = (wEnd - wStart) / toks.length;
+        toks.forEach((t, i) => {
+          words.push({
+            word: t,
+            start: wStart + i*per,
+            end:   wStart + (i+1)*per,
+            eos:   i === toks.length-1 ? !!w.eos : false,
+          });
+        });
+      }
+    }
+  }
+  return { words, segCount: obj.segments.length };
+}
+
+/* ---------- grouping ---------- */
+// Group words by WPC. Only split early on LARGE gaps (scene breaks, >1.5s).
+// This is the fix for the old bug where small pauses fragmented groups.
+function groupWords(words, size){
+  if(!words.length) return [];
+  const BREAK_GAP = 1.5;
+  const groups = [];
+  let cur = [];
+  for(const w of words){
+    if(!cur.length){ cur = [w]; continue; }
+    const gap = w.start - cur[cur.length-1].end;
+    if(cur.length >= size || gap > BREAK_GAP){
+      groups.push(cur);
+      cur = [w];
+    } else {
+      cur.push(w);
+    }
+  }
+  if(cur.length) groups.push(cur);
+  return groups.map(g => ({
+    wt: g,
+    start: g[0].start,
+    end: g[g.length-1].end,
+  }));
+}
+
+function regroup(){
+  const wpc = parseInt(el.wpc.value, 10) || 2;
+  S.groups = groupWords(S.words, wpc);
+  if(S.words.length){
+    S.duration = S.words[S.words.length-1].end;
+    el.tcTot.textContent = fmtTC(S.duration);
+    el.renderBtn.disabled = false;
+  }
+  // Repopulate editor whenever regroup happens in auto mode
+  if(!S.manualEdit) populateEditorFromGroups();
+  updateEditorStats();
+}
+
+/* ---------- time fmt ---------- */
+function fmtTC(t){
+  if(!isFinite(t)) t=0;
+  const m = Math.floor(t/60);
+  const s = Math.floor(t%60);
+  const cs = Math.floor((t*100)%100);
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+'.'+String(cs).padStart(2,'0');
+}
+
+/* ---------- active group / word ---------- */
+function getActiveGroup(t){
+  for(const g of S.groups){
+    if(t >= g.start && t < g.end) return g;
+  }
+  return null;
+}
+function getActiveWordIdx(group, t){
+  for(let i=0; i<group.wt.length; i++){
+    if(t >= group.wt[i].start && t < group.wt[i].end) return i;
+  }
+  // fall-through: past the end of the last word but still in group window
+  if(t >= group.wt[group.wt.length-1].start) return group.wt.length-1;
+  return -1;
+}
+
+/* ---------- drawing ---------- */
+function draw(){
+  const p = PRESETS[S.preset];
+  const t = S.time;
+  ctx.clearRect(0,0,cv.width,cv.height);
+
+  // Background
+  const bgMode = el.bgMode.value;
+  if(S.rendering){
+    if(bgMode === 'green'){ ctx.fillStyle='#00FF00'; ctx.fillRect(0,0,cv.width,cv.height); }
+    else if(bgMode === 'blue'){ ctx.fillStyle='#0000FF'; ctx.fillRect(0,0,cv.width,cv.height); }
+    else if(bgMode === 'transparent'){ /* leave transparent (for PNG export) */ }
+    else { ctx.fillStyle='#000000'; ctx.fillRect(0,0,cv.width,cv.height); }
+  } else {
+    // Preview: show the export bg color (with a dim overlay for transparent/black so it's visible)
+    if(bgMode === 'green'){ ctx.fillStyle='#00FF00'; }
+    else if(bgMode === 'blue'){ ctx.fillStyle='#0000FF'; }
+    else if(bgMode === 'transparent'){
+      // Transparency checkerboard preview
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0,0,cv.width,cv.height);
+      ctx.fillStyle = '#222';
+      const sz = 40;
+      for(let y=0; y<cv.height; y+=sz){
+        for(let x=0; x<cv.width; x+=sz){
+          if(((x/sz) + (y/sz)) % 2 === 0){
+            ctx.fillRect(x,y,sz,sz);
+          }
+        }
+      }
+      // Still show placeholder / caption on top of the checkerboard
+      if(!S.groups.length){
+        ctx.fillStyle = '#888';
+        ctx.font = '600 36px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Drop an SRT or JSON to begin', cv.width/2, cv.height/2);
+        return;
+      }
+      drawCaption(p, t);
+      return;
+    }
+    else { ctx.fillStyle='#1a1a1a'; }
+    ctx.fillRect(0,0,cv.width,cv.height);
+  }
+
+  if(!S.groups.length){
+    ctx.fillStyle = '#666';
+    ctx.font = '600 36px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Drop an SRT or JSON to begin', cv.width/2, cv.height/2);
+    return;
+  }
+
+  drawCaption(p, t);
+}
+
+function drawCaption(p, t){
+  const g = getActiveGroup(t);
+  if(!g) return;
+
+  const activeIdx = getActiveWordIdx(g, t);
+  // Defensive parsing — if the size input is empty/invalid (e.g. an older
+  // preset set a value that no longer maps to an option), fall back to 70
+  // so the canvas doesn't silently go blank from NaN fontSize.
+  const sizeVal = parseInt(el.size.value, 10);
+  const fontSize = (isFinite(sizeVal) && sizeVal > 0 ? sizeVal : 70) * (cv.width / 1080);
+  const lsVal = parseInt(el.letterSpacing.value, 10);
+  const letterSp = isFinite(lsVal) ? lsVal : 0;
+  const base = el.baseColor.value;
+  const hi = el.hiColor.value;
+  const fontFamily = el.fontFamily.value;
+  const fontWeight = el.fontWeight.value;
+
+  ctx.font = `${fontWeight} ${fontSize}px "${fontFamily}", sans-serif`;
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = `${letterSp}px`;
+
+  if(p.mode === 'row' || p.mode === 'pill'){
+    drawRow(g, activeIdx, t, fontSize, base, hi, p);
+  } else if(p.mode === 'punch'){
+    drawPunch(g, activeIdx, t, fontSize, base, hi, p);
+  } else if(p.mode === 'build'){
+    drawBuild(g, t, fontSize, base, hi, p);
+  }
+}
+
+function measure(s){ return ctx.measureText(s).width; }
+
+// Pick Y position from vertical-position select
+function yFromVPos(){
+  const v = el.vpos.value;
+  if(v === 'top') return cv.height * 0.22;
+  if(v === 'center') return cv.height * 0.52;
+  return cv.height * 0.82;
+}
+
+// --- Animation helpers ---
+// Read the current animation controls into a normalized config.
+function animCfg(){
+  return {
+    entrance: el.animEntrance ? el.animEntrance.value : 'none',
+    dur: Math.max(0.001, (+el.animDur.value || 240) / 1000),
+    slide: (+el.animSlide.value || 0),
+    ease: el.animEase ? el.animEase.value : 'easeout',
+    popScale: (+el.popScale.value || 100) / 100,
+    popDur: Math.max(0.001, (+el.popDur.value || 240) / 1000),
+  };
+}
+
+// Easing curves, all mapping t∈[0,1] → output (may exceed 1 for overshoot).
+function easeFn(name, t){
+  t = Math.max(0, Math.min(1, t));
+  if(name === 'linear') return t;
+  if(name === 'back'){ const s = 1.70158, u = t - 1; return 1 + u*u*((s+1)*u + s); }
+  if(name === 'bounce'){
+    const n1 = 7.5625, d1 = 2.75;
+    if(t < 1/d1)        return n1*t*t;
+    if(t < 2/d1){ t -= 1.5/d1;  return n1*t*t + 0.75; }
+    if(t < 2.5/d1){ t -= 2.25/d1; return n1*t*t + 0.9375; }
+    t -= 2.625/d1; return n1*t*t + 0.984375;
+  }
+  const u = 1 - t; return 1 - u*u*u; // easeOutCubic (default)
+}
+
+// Entrance transform for a unit (word or caption group) that appeared at `ts`.
+// Returns {alpha, scale, dy} to compose into drawWord. Used by row/pill/punch.
+function entranceAt(ts, t, cfg){
+  if(cfg.entrance === 'none') return { alpha:1, scale:1, dy:0 };
+  const since = t - ts;
+  if(since >= cfg.dur || since < 0) return { alpha:1, scale:1, dy:0 };
+  const e = easeFn(cfg.ease, since / cfg.dur);
+  const slidePx = cfg.slide * (cv.width / 1080);
+  let alpha = 1, scale = 1, dy = 0;
+  if(cfg.entrance === 'fade' || cfg.entrance === 'slidefade') alpha = Math.max(0, Math.min(1, e));
+  if(cfg.entrance === 'slide' || cfg.entrance === 'slidefade') dy = (1 - e) * slidePx;
+  if(cfg.entrance === 'scale') scale = 0.4 + 0.6 * e;
+  return { alpha, scale, dy };
+}
+
+// Emphasis "pop" pulse for the word being spoken: 1 → popScale → 1.
+function popAt(wordStart, t, cfg){
+  if(cfg.popScale <= 1.0001) return 1;
+  const e = t - wordStart;
+  if(e < 0 || e > cfg.popDur) return 1;
+  const p01 = e / cfg.popDur;
+  if(p01 < 0.35){ const s = easeFn('easeout', p01 / 0.35); return 1 + (cfg.popScale - 1) * s; }
+  const s = easeFn('easeout', (p01 - 0.35) / 0.65); return cfg.popScale - (cfg.popScale - 1) * s;
+}
+
+// Draw a single word with current stroke/shadow settings
+function drawWord(word, x, y, color, opts){
+  opts = opts || {};
+  const scale = opts.scale ?? 1;
+  const alpha = opts.alpha ?? 1;
+  const dy = opts.dy ?? 0;
+  y = y + dy;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if(scale !== 1){
+    const w = measure(word);
+    ctx.translate(x + w/2, y);
+    ctx.scale(scale, scale);
+    ctx.translate(-(x + w/2), -y);
+  }
+
+  // Drop shadow (applied to both stroke and fill via canvas shadow props)
+  if(getTog(el.tShadow)){
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = +el.shadowBlur.value * (cv.width/1080);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = +el.shadowY.value * (cv.width/1080);
+  }
+
+  // Stroke
+  if(getTog(el.tStroke)){
+    ctx.lineWidth = +el.strokeW.value * (cv.width/1080);
+    ctx.strokeStyle = '#000';
+    ctx.lineJoin = 'round';
+    ctx.strokeText(word, x, y);
+  }
+
+  // Fill — disable shadow for the fill pass if we already stroked it
+  // (otherwise the shadow doubles up). Only apply shadow to the stroke if
+  // present; fill just gets the color.
+  if(getTog(el.tShadow) && getTog(el.tStroke)){
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+  }
+
+  ctx.fillStyle = color;
+  ctx.fillText(word, x, y);
+  ctx.restore();
+}
+
+// Wrap words into lines based on max pixel width
+function wrapToLines(words, maxPxW){
+  const lines = [];
+  let cur = [];
+  let curW = 0;
+  const spaceW = measure(' ');
+  for(const w of words){
+    const ww = measure(w);
+    const needed = curW + (cur.length ? spaceW : 0) + ww;
+    if(needed > maxPxW && cur.length){
+      lines.push(cur);
+      cur = [w];
+      curW = ww;
+    } else {
+      cur.push(w);
+      curW = needed;
+    }
+  }
+  if(cur.length) lines.push(cur);
+  return lines;
+}
+
+function drawRow(g, activeIdx, t, fontSize, base, hi, p){
+  const allCaps = getTog(el.tAllCaps);
+  const rawWords = g.wt.map(w => allCaps ? w.word.toUpperCase() : w.word);
+
+  const wrap = getTog(el.tWrap);
+  const wrapMaxW = cv.width * (+el.wrapW.value / 100);
+
+  // Build lines: with wrap, break into multiple lines; otherwise one line.
+  const lines = wrap ? wrapToLines(rawWords, wrapMaxW) : [rawWords];
+
+  const spaceW = measure(' ');
+  const lineH = fontSize * 1.28;
+  const baseY = yFromVPos();
+  const startY = baseY - ((lines.length-1) * lineH)/2;
+
+  // The whole caption group enters together (fade / slide / scale).
+  const cfg = animCfg();
+  const ent = entranceAt(g.start, t, cfg);
+
+  // Background box spanning all lines (if enabled)
+  if(getTog(el.tBgBox)){
+    const maxLineW = Math.max(...lines.map(ln => {
+      const widths = ln.map(w => measure(w));
+      return widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    }));
+    const scale = cv.width/1080;
+    const pad = (+el.bgBoxPad.value) * scale;
+    const offsetY = (+el.bgBoxOffsetY.value) * scale;
+    const radius = (+el.bgBoxRadius.value) * scale;
+    // Box top: above the cap height of the first line. fontSize*0.82 is a
+    // good visual approximation of cap height for most display fonts.
+    const bx = cv.width/2 - maxLineW/2 - pad;
+    const by = startY - fontSize*0.82 - pad + offsetY + ent.dy;
+    const bw = maxLineW + pad*2;
+    const bh = (lines.length-1)*lineH + fontSize*0.95 + pad*2;
+    const [r,gv,b] = hexToRgb(el.bgBoxColor.value);
+    const op = +el.bgBoxOpacity.value / 100;
+    ctx.save();
+    ctx.globalAlpha = ent.alpha;
+    ctx.fillStyle = `rgba(${r},${gv},${b},${op})`;
+    roundRect(ctx, bx, by, bw, bh, radius);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Walk words with a running global index so activeIdx still refers to the
+  // flat words array (not per-line).
+  let globalIdx = 0;
+  ctx.textAlign = 'left';
+
+  // If pill mode, first pass draws pill rectangles
+  if(p.mode === 'pill'){
+    let gi = 0;
+    for(let li=0; li<lines.length; li++){
+      const ln = lines[li];
+      const widths = ln.map(w => measure(w));
+      const lineW = widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+      const y = startY + li*lineH;
+      let x = cv.width/2 - lineW/2;
+      for(let i=0; i<ln.length; i++){
+        if(gi === activeIdx){
+          const pillPadX = fontSize * 0.25;
+          const pillPadY = fontSize * 0.18;
+          const px = x - pillPadX;
+          const py = y - fontSize + pillPadY * 0.2 + ent.dy;
+          const pw = widths[i] + pillPadX * 2;
+          const ph = fontSize * 1.15;
+          ctx.save();
+          ctx.globalAlpha = ent.alpha;
+          ctx.fillStyle = hi;
+          roundRect(ctx, px, py, pw, ph, ph*0.18);
+          ctx.fill();
+          ctx.restore();
+        }
+        x += widths[i] + spaceW;
+        gi++;
+      }
+    }
+  }
+
+  // Main text pass
+  for(let li=0; li<lines.length; li++){
+    const ln = lines[li];
+    const widths = ln.map(w => measure(w));
+    const lineW = widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    const y = startY + li*lineH;
+    let x = cv.width/2 - lineW/2;
+    for(let i=0; i<ln.length; i++){
+      let color = base;
+      if(p.mode === 'row'){
+        color = (globalIdx === activeIdx) ? hi : base;
+      } else if(p.mode === 'pill'){
+        color = (globalIdx === activeIdx) ? el.pillTextColor.value : base;
+      }
+      // The active (spoken) word gets the emphasis pop; entrance applies to all.
+      const pop = (globalIdx === activeIdx) ? popAt(g.wt[globalIdx].start, t, cfg) : 1;
+      drawWord(ln[i], x, y, color, { scale: ent.scale * pop, alpha: ent.alpha, dy: ent.dy });
+      x += widths[i] + spaceW;
+      globalIdx++;
+    }
+  }
+}
+
+function drawBuild(g, t, fontSize, base, hi, p){
+  // BUILD mode: words appear one by one, fading from the pre-reveal color
+  // (dim placeholder) to the base color as their start time arrives.
+  // Layout matches drawRow exactly so wrap, bg box, vpos all work.
+  const allCaps = getTog(el.tAllCaps);
+  const rawWords = g.wt.map(w => allCaps ? w.word.toUpperCase() : w.word);
+  const wrap = getTog(el.tWrap);
+  const wrapMaxW = cv.width * (+el.wrapW.value / 100);
+  const lines = wrap ? wrapToLines(rawWords, wrapMaxW) : [rawWords];
+
+  const spaceW = measure(' ');
+  const lineH = fontSize * 1.28;
+  const baseY = yFromVPos();
+  const startY = baseY - ((lines.length-1) * lineH)/2;
+
+  // Background box (same as drawRow)
+  if(getTog(el.tBgBox)){
+    const maxLineW = Math.max(...lines.map(ln => {
+      const widths = ln.map(w => measure(w));
+      return widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    }));
+    const scale = cv.width/1080;
+    const pad = (+el.bgBoxPad.value) * scale;
+    const offsetY = (+el.bgBoxOffsetY.value) * scale;
+    const radius = (+el.bgBoxRadius.value) * scale;
+    const bx = cv.width/2 - maxLineW/2 - pad;
+    const by = startY - fontSize*0.82 - pad + offsetY;
+    const bw = maxLineW + pad*2;
+    const bh = (lines.length-1)*lineH + fontSize*0.95 + pad*2;
+    const [r,gv,b] = hexToRgb(el.bgBoxColor.value);
+    const op = +el.bgBoxOpacity.value / 100;
+    ctx.fillStyle = `rgba(${r},${gv},${b},${op})`;
+    roundRect(ctx, bx, by, bw, bh, radius);
+    ctx.fill();
+  }
+
+  const preColor = el.preRevealColor.value;
+  const preOpacity = (+el.preRevealOpacity.value) / 100;
+  const cfg = animCfg();
+  const REVEAL = cfg.dur; // reveal/crossfade duration (from Animation > Speed)
+  const slidePx = cfg.slide * (cv.width / 1080);
+  const slideOn = (cfg.entrance === 'slide' || cfg.entrance === 'slidefade');
+  const scaleOn = (cfg.entrance === 'scale');
+
+  ctx.textAlign = 'left';
+  let globalIdx = 0;
+  for(let li=0; li<lines.length; li++){
+    const ln = lines[li];
+    const widths = ln.map(w => measure(w));
+    const lineW = widths.reduce((a,b)=>a+b,0) + spaceW * (ln.length-1);
+    const y = startY + li*lineH;
+    let x = cv.width/2 - lineW/2;
+    for(let i=0; i<ln.length; i++){
+      const wInfo = g.wt[globalIdx];
+      // How far past the word's start are we (in seconds)? Negative = not yet revealed.
+      const since = t - wInfo.start;
+      let color, alpha, dy = 0, scale = 1;
+      if(since <= 0){
+        // Pre-reveal placeholder — sits in final position, dimmed.
+        color = preColor;
+        alpha = preOpacity;
+      } else if(since >= REVEAL){
+        // Fully revealed
+        color = base;
+        alpha = 1;
+        scale = popAt(wInfo.start, t, cfg);
+      } else {
+        // Revealing: eased crossfade of color + alpha, plus optional motion.
+        const r = easeFn(cfg.ease, since / REVEAL);
+        color = lerpColor(preColor, base, r);
+        alpha = preOpacity + (1 - preOpacity) * r;
+        if(slideOn) dy = (1 - r) * slidePx;
+        if(scaleOn) scale = 0.5 + 0.5 * r;
+        scale *= popAt(wInfo.start, t, cfg);
+      }
+      drawWord(ln[i], x, y, color, { alpha, dy, scale });
+      x += widths[i] + spaceW;
+      globalIdx++;
+    }
+  }
+}
+
+// Hex → hex linear interpolation between two colors at t ∈ [0,1].
+function lerpColor(a, b, t){
+  const [ar,ag,ab] = hexToRgb(a);
+  const [br,bg,bb] = hexToRgb(b);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function drawPunch(g, activeIdx, t, fontSize, base, hi, p){
+  if(activeIdx < 0) return;
+  const w = g.wt[activeIdx];
+  const allCaps = getTog(el.tAllCaps);
+  const word = allCaps ? w.word.toUpperCase() : w.word;
+
+  // Entrance (scale/slide/fade in) + emphasis pop, both keyed to this word's start.
+  const cfg = animCfg();
+  const ent = entranceAt(w.start, t, cfg);
+  const pop = popAt(w.start, t, cfg);
+  const scale = ent.scale * pop;
+  const alpha = ent.alpha;
+  const dy = ent.dy;
+
+  const wWidth = measure(word);
+  const y = yFromVPos();
+  const x = cv.width/2 - wWidth/2;
+
+  // Optional bg box behind single word
+  if(getTog(el.tBgBox)){
+    const scl = cv.width/1080;
+    const pad = (+el.bgBoxPad.value) * scl;
+    const offsetY = (+el.bgBoxOffsetY.value) * scl;
+    const radius = (+el.bgBoxRadius.value) * scl;
+    const [r,gv,b] = hexToRgb(el.bgBoxColor.value);
+    const op = +el.bgBoxOpacity.value / 100;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = `rgba(${r},${gv},${b},${op})`;
+    roundRect(ctx,
+      x - pad,
+      y - fontSize*0.82 - pad + offsetY + dy,
+      wWidth + pad*2,
+      fontSize*0.95 + pad*2,
+      radius
+    );
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.textAlign = 'left';
+  drawWord(word, x, y, hi, { scale, alpha, dy });
+}
+
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+/* ---------- playback ---------- */
+function tick(ts){
+  if(!S.playing) return;
+  if(!S.lastTs) S.lastTs = ts;
+  const dt = (ts - S.lastTs)/1000;
+  S.lastTs = ts;
+  S.time += dt;
+  if(S.time >= S.duration){
+    S.time = S.duration;
+    S.playing = false;
+    el.playBtn.textContent = '▶';
+  }
+  updateTime();
+  draw();
+  if(S.playing) S.raf = requestAnimationFrame(tick);
+}
+function updateTime(){
+  el.tcCur.textContent = fmtTC(S.time);
+  el.scrub.value = S.duration ? Math.floor((S.time/S.duration)*1000) : 0;
+}
+
+el.playBtn.addEventListener('click', ()=>{
+  if(!S.groups.length) return;
+  S.playing = !S.playing;
+  el.playBtn.textContent = S.playing ? '❚❚' : '▶';
+  if(S.playing){
+    if(S.time >= S.duration) S.time = 0;
+    S.lastTs = 0;
+    S.raf = requestAnimationFrame(tick);
+  } else {
+    cancelAnimationFrame(S.raf);
+  }
+});
+el.scrub.addEventListener('input', ()=>{
+  if(!S.duration) return;
+  S.time = (+el.scrub.value/1000) * S.duration;
+  updateTime();
+  draw();
+});
+
+/* ---------- preset & color wiring ---------- */
+document.querySelectorAll('.preset').forEach(p => {
+  p.addEventListener('click', ()=>{
+    document.querySelectorAll('.preset').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    S.preset = p.dataset.preset;
+    // Apply preset defaults to the global controls
+    const def = PRESETS[S.preset];
+    applyAnimDefaults(def.anim);
+    el.wpc.value = String(def.wpc);
+    setTog(el.tStroke, def.stroke);
+    if(def.stroke){
+      el.strokeW.value = String(def.strokeW);
+      el.strokeWVal.textContent = String(def.strokeW);
+    }
+    el.strokeOpts.style.display = def.stroke ? '' : 'none';
+    // show pill text color only for pill preset
+    el.pillColorRow.classList.toggle('show', S.preset === 'pill');
+    // show build-only controls (pre-reveal color + opacity) only for build preset
+    el.buildRow.classList.toggle('show', S.preset === 'build');
+    el.buildOpacityRow.classList.toggle('show', S.preset === 'build');
+    if(S.preset === 'build'){
+      if(def.preColor)   el.preRevealColor.value = def.preColor;
+      if(def.preOpacity != null){
+        el.preRevealOpacity.value = String(def.preOpacity);
+        el.preRevealOpacityVal.textContent = def.preOpacity + '%';
+      }
+    }
+    S.manualEdit = false;
+    regroup();
+    draw();
+  });
+});
+[el.baseColor, el.hiColor, el.pillTextColor, el.size, el.ar, el.bgMode, el.vpos].forEach(inp => {
+  inp.addEventListener('input', ()=>{
+    if(inp === el.ar) applyAspect();
+    else draw();
+  });
+  inp.addEventListener('change', ()=>{
+    if(inp === el.ar) applyAspect();
+    else draw();
+  });
+});
+
+// --- Toggle helpers (click .tog to flip .on) ---
+function getTog(tog){ return tog.classList.contains('on'); }
+function setTog(tog, on){ tog.classList.toggle('on', !!on); }
+function wireTog(tog, subOpts, onChange){
+  tog.addEventListener('click', ()=>{
+    const newOn = !getTog(tog);
+    setTog(tog, newOn);
+    if(subOpts) subOpts.style.display = newOn ? '' : 'none';
+    if(onChange) onChange(newOn);
+    draw();
+  });
+}
+wireTog(el.tAllCaps, null);
+wireTog(el.tStroke, el.strokeOpts);
+wireTog(el.tShadow, el.shadowOpts);
+wireTog(el.tBgBox, el.bgBoxOpts);
+wireTog(el.tWrap, el.wrapOpts);
+
+// --- Range inputs with live value labels ---
+function wireRange(input, valEl, suffix){
+  suffix = suffix || '';
+  const update = () => {
+    valEl.textContent = input.value + suffix;
+    draw();
+  };
+  input.addEventListener('input', update);
+  input.addEventListener('change', update);
+}
+wireRange(el.strokeW, el.strokeWVal, '');
+wireRange(el.shadowBlur, el.shadowBlurVal, '');
+wireRange(el.shadowY, el.shadowYVal, '');
+wireRange(el.bgBoxOpacity, el.bgBoxOpacityVal, '');
+wireRange(el.bgBoxOffsetY, el.bgBoxOffsetYVal, 'px');
+wireRange(el.bgBoxPad, el.bgBoxPadVal, '');
+wireRange(el.bgBoxRadius, el.bgBoxRadiusVal, '');
+wireRange(el.wrapW, el.wrapWVal, '%');
+wireRange(el.letterSpacing, el.letterSpacingVal, 'px');
+wireRange(el.preRevealOpacity, el.preRevealOpacityVal, '%');
+
+// --- Animation controls ---
+wireRange(el.animDur, el.animDurVal, 'ms');
+wireRange(el.animSlide, el.animSlideVal, 'px');
+wireRange(el.popDur, el.popDurVal, 'ms');
+// popScale displays as a multiplier (1.18×), so it needs custom formatting.
+const updatePopScale = () => {
+  el.popScaleVal.textContent = (+el.popScale.value / 100).toFixed(2) + '×';
+  draw();
+};
+el.popScale.addEventListener('input', updatePopScale);
+el.popScale.addEventListener('change', updatePopScale);
+el.animEntrance.addEventListener('change', draw);
+el.animEase.addEventListener('change', draw);
+
+// --- BG box color ---
+el.bgBoxColor.addEventListener('input', draw);
+el.preRevealColor.addEventListener('input', draw);
+
+// --- WPC changes regroup ---
+el.wpc.addEventListener('change', () => {
+  S.manualEdit = false;
+  regroup();
+  draw();
+});
+
+/* ---------- file drop ---------- */
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const raw = e.target.result;
+      // Decide SRT vs JSON: trust a .json extension, otherwise sniff the
+      // content (a JSON transcript starts with { or [).
+      let asJSON = /\.json$/i.test(file.name);
+      if(!asJSON){
+        const t = raw.replace(/^\uFEFF/, '').trimStart();
+        if(t.startsWith('{') || t.startsWith('[')) asJSON = true;
+      }
+      if(asJSON) loadFromJSON(raw);
+      else       loadFromSRT(raw);
+    } catch(err){
+      console.error(err);
+      alert('Failed to parse file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadFromJSON(raw){
+  const obj = JSON.parse(raw);
+  const { words, segCount } = parseTranscriptJSON(obj);
+  S.words = words;
+  if(!S.words.length){
+    alert('No words found in that JSON transcript.');
+    return;
+  }
+  regroup();
+  S.time = 0;
+  updateTime();
+  el.stats.style.display = 'block';
+  el.stats.innerHTML =
+    `<b>${segCount}</b> segments · <b>${S.words.length}</b> words · <b>${S.groups.length}</b> groups · <b>${fmtTC(S.duration)}</b>` +
+    `<div style="color:var(--good);margin-top:6px">✓ True word-level timing — exact start/end per word, no interpolation</div>`;
+  draw();
+}
+
+function loadFromSRT(raw){
+  const entries = parseSRT(raw);
+  S.words = entriesToWords(entries);
+  if(!S.words.length){
+    alert('No captions found in that SRT.');
+    return;
+  }
+  regroup();
+  S.time = 0;
+  updateTime();
+  el.stats.style.display = 'block';
+
+  // Analyze SRT timing precision. We split each entry's words evenly
+      // across its duration — so an entry with 1-2 words is accurate, but
+      // an entry with 8 words spread over 4s is just guesswork. Flag this
+      // because users will export and wonder why words don't sync.
+      const wordsPerEntry = entries.map(en =>
+        en.text.split(/\s+/).filter(Boolean).length
+      );
+      const avg = wordsPerEntry.reduce((a,b)=>a+b, 0) / wordsPerEntry.length;
+      const max = Math.max(...wordsPerEntry);
+      const multiCount = wordsPerEntry.filter(n => n >= 3).length;
+      const multiPct = (multiCount / wordsPerEntry.length) * 100;
+
+      let warn = '';
+      if(avg > 4 || max >= 6){
+        // Bad: long multi-word lines — timing will visibly drift
+        warn = `<div style="color:#ff5b5b;margin-top:6px;font-weight:600">⚠ Inaccurate timing</div>` +
+               `<div style="color:var(--muted);margin-top:2px;line-height:1.4">This SRT has long multi-word lines (avg ${avg.toFixed(1)} words/entry, longest ${max}). Word timing is interpolated evenly inside each entry, so individual words may drift from where they're actually spoken.<br><br>In Premiere's Captions panel, re-export with <b>Single Line</b>, <b>Max length: 7 characters</b>, <b>Min duration: 1.2s</b>, <b>Gap: 0 frames</b> for tight word-level sync.</div>`;
+      } else if(avg > 2 || multiPct > 25){
+        // Caution
+        warn = `<div style="color:#ffc107;margin-top:6px;font-weight:600">⚠ Approximate timing</div>` +
+               `<div style="color:var(--muted);margin-top:2px;line-height:1.4">${multiCount} of ${wordsPerEntry.length} entries have 3+ words (avg ${avg.toFixed(1)}). Word timing is interpolated within each entry — may not align perfectly with the audio.<br><br>For tighter sync, re-export from Premiere's Captions panel with <b>Single Line</b>, <b>Max length: 7 characters</b>, <b>Min duration: 1.2s</b>, <b>Gap: 0 frames</b>.</div>`;
+      } else {
+        warn = `<div style="color:var(--good);margin-top:6px">✓ Word-level timing (avg ${avg.toFixed(1)} words/entry)</div>`;
+      }
+
+      el.stats.innerHTML =
+        `<b>${entries.length}</b> entries · <b>${S.words.length}</b> words · <b>${S.groups.length}</b> groups · <b>${fmtTC(S.duration)}</b>` +
+        warn;
+      draw();
+}
+el.drop.addEventListener('click', ()=> el.fileInput.click());
+el.fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+el.drop.addEventListener('dragover', e => { e.preventDefault(); el.drop.classList.add('drag'); });
+el.drop.addEventListener('dragleave', ()=> el.drop.classList.remove('drag'));
+el.drop.addEventListener('drop', e => {
+  e.preventDefault();
+  el.drop.classList.remove('drag');
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+/* ---------- export MP4 ---------- */
+async function renderMP4(){
+  if(!S.groups.length) return;
+  if(!('VideoEncoder' in window)){
+    alert('Your browser does not support MP4 encoding (needs WebCodecs). Try a recent Chromium-based browser.');
+    return;
+  }
+
+  el.ov.classList.add('show');
+  el.ovTxt.textContent = 'Loading font…';
+  el.barFill.style.width = '0%';
+
+  // CRITICAL: make sure the chosen font is fully loaded before we start
+  // encoding frames. Otherwise the first batch of frames render with a
+  // fallback font.
+  await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+
+  el.ovTxt.textContent = 'Loading MP4 library…';
+
+  const origTime = S.time;
+  const origPlaying = S.playing;
+  S.playing = false;
+  S.rendering = true;
+
+  const fps = parseFloat(el.fps.value) || 30;
+  const duration = S.duration;
+  const totalFrames = Math.ceil(duration * fps);
+  const w = cv.width, h = cv.height;
+  const bitrate = Math.max(2_000_000, Math.min(12_000_000, w*h*fps*0.08));
+
+  try {
+    const mp4mod = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@4.3.3/+esm');
+    const { Muxer, ArrayBufferTarget } = mp4mod;
+
+    // Probe supported codec
+    const codecs = ['avc1.4D4028','avc1.4D401E','avc1.640028','avc1.42E01E'];
+    let chosen = null;
+    for(const c of codecs){
+      try {
+        const sup = await VideoEncoder.isConfigSupported({ codec:c, width:w, height:h, bitrate, framerate:fps });
+        if(sup.supported){ chosen = c; break; }
+      } catch(e){}
+    }
+    if(!chosen) throw new Error('No supported H.264 codec found');
+
+    const target = new ArrayBufferTarget();
+    const muxer = new Muxer({
+      target,
+      video: { codec:'avc', width:w, height:h, frameRate:fps },
+      fastStart: 'in-memory',
+    });
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (e) => { throw e; },
+    });
+    encoder.configure({ codec:chosen, width:w, height:h, bitrate, framerate:fps });
+
+    el.ovTxt.textContent = 'Encoding MP4…';
+
+    for(let i=0; i<totalFrames; i++){
+      S.time = Math.min(duration, i/fps);
+      draw();
+      // Correct timestamp math: compute from i/fps each frame in µs.
+      // This keeps fractional-fps timing accurate (no compounding round-off).
+      const tsNow  = Math.round(i       * 1_000_000 / fps);
+      const tsNext = Math.round((i + 1) * 1_000_000 / fps);
+      const vf = new VideoFrame(cv, {
+        timestamp: tsNow,
+        duration: tsNext - tsNow,
+      });
+      encoder.encode(vf);
+      vf.close();
+      if(i % 10 === 0){
+        const pct = Math.round((i/totalFrames)*100);
+        el.barFill.style.width = pct + '%';
+        el.ovTxt.textContent = `Encoding ${pct}%`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    await encoder.flush();
+    muxer.finalize();
+    encoder.close();
+
+    const blob = new Blob([target.buffer], { type: 'video/mp4' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wordpunch.mp4';
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+
+    el.ovTxt.textContent = 'Done!';
+    el.barFill.style.width = '100%';
+    setTimeout(()=> el.ov.classList.remove('show'), 500);
+  } catch(err){
+    console.error(err);
+    el.ov.classList.remove('show');
+    alert('Render failed: ' + err.message);
+  } finally {
+    S.rendering = false;
+    S.time = origTime;
+    if(origPlaying){ S.playing = true; S.lastTs = 0; S.raf = requestAnimationFrame(tick); }
+    draw();
+  }
+}
+/* ---------- PNG sequence export ---------- */
+async function renderPngZip(){
+  if(!S.groups.length) return;
+
+  el.ov.classList.add('show');
+  el.ovTxt.textContent = 'Loading font…';
+  el.barFill.style.width = '0%';
+  await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+
+  el.ovTxt.textContent = 'Loading ZIP library…';
+
+  const origTime = S.time;
+  const origPlaying = S.playing;
+  S.playing = false;
+  S.rendering = true;
+
+  const fps = parseFloat(el.fps.value) || 30;
+  const duration = S.duration;
+  const totalFrames = Math.ceil(duration * fps);
+
+  try {
+    const { zipSync } = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm');
+    const files = {};
+
+    el.ovTxt.textContent = 'Rendering frames…';
+
+    for(let i=0; i<totalFrames; i++){
+      S.time = Math.min(duration, i/fps);
+      draw();
+      // Read the canvas as PNG. Transparent export relies on the bg mode
+      // being 'transparent' — draw() leaves the canvas un-filled in that case.
+      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+      const buf = await blob.arrayBuffer();
+      const pad = String(i).padStart(6, '0');
+      files[`frame_${pad}.png`] = new Uint8Array(buf);
+      if(i % 5 === 0){
+        const pct = Math.round((i/totalFrames)*100);
+        el.barFill.style.width = pct + '%';
+        el.ovTxt.textContent = `Rendering ${pct}% (${i+1}/${totalFrames})`;
+        await new Promise(r=>setTimeout(r,0));
+      }
+    }
+
+    el.ovTxt.textContent = 'Zipping…';
+    await new Promise(r=>setTimeout(r,0));
+    // level:0 — PNGs are already compressed; avoid wasting time re-deflating.
+    const zipped = zipSync(files, { level: 0 });
+    const blob = new Blob([zipped], { type:'application/zip' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wordpunch_${fps}fps.zip`;
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+
+    el.ovTxt.textContent = 'Done!';
+    el.barFill.style.width = '100%';
+    setTimeout(()=> el.ov.classList.remove('show'), 500);
+  } catch(err){
+    console.error(err);
+    el.ov.classList.remove('show');
+    alert('PNG export failed: ' + err.message);
+  } finally {
+    S.rendering = false;
+    S.time = origTime;
+    if(origPlaying){ S.playing = true; S.lastTs = 0; S.raf = requestAnimationFrame(tick); }
+    draw();
+  }
+}
+
+/* ---------- Caption editor ---------- */
+function setEditorBadge(manual){
+  el.editorBadge.textContent = manual ? 'MANUAL' : 'AUTO';
+  el.editorBadge.classList.toggle('manual', !!manual);
+}
+function populateEditorFromGroups(){
+  if(!S.groups.length){ el.captionEditor.value = ''; return; }
+  const allCaps = getTog(el.tAllCaps);
+  el.captionEditor.value = S.groups.map(g =>
+    g.wt.map(w => allCaps ? w.word.toUpperCase() : w.word).join(' ')
+  ).join('\n');
+  setEditorBadge(false);
+}
+function updateEditorStats(){
+  if(!S.words.length){ el.editorStats.textContent = ''; return; }
+  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
+  el.editorStats.innerHTML = `<b>${lines.length}</b> groups · <b>${S.words.length}</b> words total`;
+}
+function applyEditorToGroups(){
+  if(!S.words.length) return;
+  const lines = el.captionEditor.value.split('\n').filter(l => l.trim());
+  if(!lines.length) return;
+
+  // Sanity: total words in editor must match the SRT word count.
+  // This is how we keep timings aligned — the editor re-words but doesn't
+  // re-time.
+  const editorWords = lines.flatMap(l => l.trim().split(/\s+/).filter(Boolean));
+  if(editorWords.length !== S.words.length){
+    el.editorStats.innerHTML = `<span style="color:var(--bad)">⚠ Word count mismatch: editor has <b>${editorWords.length}</b>, SRT has <b>${S.words.length}</b>. Fix wording or click Re-flow.</span>`;
+    return;
+  }
+
+  const newGroups = [];
+  let wi = 0;
+  for(const line of lines){
+    const lineWords = line.trim().split(/\s+/).filter(Boolean);
+    if(!lineWords.length) continue;
+    const wt = [];
+    for(const lw of lineWords){
+      if(wi >= S.words.length) break;
+      const orig = S.words[wi];
+      wt.push({ word: lw, start: orig.start, end: orig.end });
+      wi++;
+    }
+    if(wt.length){
+      newGroups.push({ wt, start: wt[0].start, end: wt[wt.length-1].end });
+    }
+  }
+  if(newGroups.length) S.groups = newGroups;
+  updateEditorStats();
+  draw();
+}
+
+el.captionEditor.addEventListener('input', ()=>{
+  S.manualEdit = true;
+  setEditorBadge(true);
+  applyEditorToGroups();
+});
+el.editorReflow.addEventListener('click', ()=>{
+  S.manualEdit = false;
+  regroup();
+  draw();
+});
+el.editorReset.addEventListener('click', ()=>{
+  if(!S.words.length) return;
+  S.manualEdit = true;
+  setEditorBadge(true);
+  const allCaps = getTog(el.tAllCaps);
+  el.captionEditor.value = S.words.map(w => allCaps ? w.word.toUpperCase() : w.word).join('\n');
+  applyEditorToGroups();
+});
+
+/* ---------- Route Export button by format ---------- */
+// (actual click binding is in the Presets section below, which also triggers
+// a preset-snapshot download alongside each export.)
+// Update button label AND sensible default bg when format changes
+el.exportFmt.addEventListener('change', ()=>{
+  if(el.exportFmt.value === 'png'){
+    el.renderBtn.textContent = 'Export PNG Sequence';
+    el.bgMode.value = 'transparent';
+  } else {
+    el.renderBtn.textContent = 'Export MP4';
+    // MP4 can't do transparent — flip back to green
+    if(el.bgMode.value === 'transparent') el.bgMode.value = 'green';
+  }
+  draw();
+});
+
+/* ========================================================================
+   Presets: save, load, migrate legacy (v1) WordPunch presets
+   ======================================================================== */
+
+// Build a v2 preset object from current UI state.
+function buildPreset(){
+  const caps = getTog(el.tAllCaps);
+  return {
+    _wordpunch: true,
+    _version: 2,
+    name: 'WordPunch Preset',
+    savedAt: new Date().toISOString(),
+
+    // Style
+    preset: S.preset,
+    wpc: parseInt(el.wpc.value, 10),
+    allCaps: caps,
+    vpos: el.vpos.value,
+    ar: el.ar.value,
+    size: parseInt(el.size.value, 10),
+    letterSpacing: +el.letterSpacing.value,
+
+    // Font
+    fontFamily: el.fontFamily.value,
+    fontWeight: el.fontWeight.value,
+
+    // Colors
+    baseColor: el.baseColor.value,
+    hiColor: el.hiColor.value,
+    pillTextColor: el.pillTextColor.value,
+    preRevealColor: el.preRevealColor.value,
+    preRevealOpacity: +el.preRevealOpacity.value,
+
+    // Stroke
+    stroke: getTog(el.tStroke),
+    strokeW: +el.strokeW.value,
+
+    // Shadow
+    shadow: getTog(el.tShadow),
+    shadowBlur: +el.shadowBlur.value,
+    shadowY: +el.shadowY.value,
+
+    // Bg box
+    bgBox: getTog(el.tBgBox),
+    bgBoxColor: el.bgBoxColor.value,
+    bgBoxOpacity: +el.bgBoxOpacity.value,
+    bgBoxOffsetY: +el.bgBoxOffsetY.value,
+    bgBoxPad: +el.bgBoxPad.value,
+    bgBoxRadius: +el.bgBoxRadius.value,
+
+    // Wrap
+    wrap: getTog(el.tWrap),
+    wrapW: +el.wrapW.value,
+
+    // Animation
+    animEntrance: el.animEntrance.value,
+    animDur: +el.animDur.value,
+    animSlide: +el.animSlide.value,
+    animEase: el.animEase.value,
+    popScale: +el.popScale.value,
+    popDur: +el.popDur.value,
+
+    // Export
+    exportFmt: el.exportFmt.value,
+    fps: el.fps.value,
+    bgMode: el.bgMode.value,
+
+    // Caption state (if edited manually, include the edited lines)
+    captionText: S.manualEdit ? el.captionEditor.value : null,
+
+    // Custom font: store name — the caller may add `customFont` with base64
+    // bytes if one is loaded.
+    customFont: null,
+  };
+}
+
+// Apply a v2 preset to the UI.
+function applyPreset(p, opts){
+  opts = opts || {};
+  const importText = !!opts.importText;
+  const importFont = opts.importFont !== false;
+
+  // Set preset pill (marks the active style mode)
+  if(p.preset && PRESETS[p.preset]){
+    document.querySelectorAll('.preset').forEach(x => x.classList.remove('active'));
+    const btn = document.querySelector(`.preset[data-preset="${p.preset}"]`);
+    if(btn) btn.classList.add('active');
+    S.preset = p.preset;
+    el.pillColorRow.classList.toggle('show', S.preset === 'pill');
+    el.buildRow.classList.toggle('show', S.preset === 'build');
+    el.buildOpacityRow.classList.toggle('show', S.preset === 'build');
+  }
+
+  // Helpers to safely set values
+  const setVal = (inp, v) => { if(v != null) inp.value = String(v); };
+  const setNum = (inp, valEl, v, suffix) => {
+    if(v == null) return;
+    inp.value = String(v);
+    if(valEl) valEl.textContent = String(v) + (suffix || '');
+  };
+
+  setVal(el.wpc, p.wpc);
+  setTog(el.tAllCaps, !!p.allCaps);
+  setVal(el.vpos, p.vpos);
+  setVal(el.ar, p.ar);
+  setVal(el.size, p.size);
+  setNum(el.letterSpacing, el.letterSpacingVal, p.letterSpacing, 'px');
+
+  setVal(el.fontWeight, p.fontWeight);
+  // Font family: only set if present (and known, or if importFont + customFont
+  // handled below will add it to the list)
+  if(p.fontFamily){
+    // Check if the family exists in the select options
+    const opts2 = Array.from(el.fontFamily.options).map(o => o.value);
+    if(opts2.includes(p.fontFamily)){
+      el.fontFamily.value = p.fontFamily;
+    } else if(!importFont){
+      // Leave alone — the custom font name won't resolve, but we don't want
+      // to set an unknown family that would render as fallback silently.
+    } else {
+      // We'll set this after the font loads below
+    }
+  }
+
+  setVal(el.baseColor, p.baseColor);
+  setVal(el.hiColor, p.hiColor);
+  setVal(el.pillTextColor, p.pillTextColor);
+  setVal(el.preRevealColor, p.preRevealColor);
+  setNum(el.preRevealOpacity, el.preRevealOpacityVal, p.preRevealOpacity, '%');
+
+  setTog(el.tStroke, !!p.stroke);
+  el.strokeOpts.style.display = p.stroke ? '' : 'none';
+  setNum(el.strokeW, el.strokeWVal, p.strokeW);
+
+  setTog(el.tShadow, !!p.shadow);
+  el.shadowOpts.style.display = p.shadow ? '' : 'none';
+  setNum(el.shadowBlur, el.shadowBlurVal, p.shadowBlur);
+  setNum(el.shadowY, el.shadowYVal, p.shadowY);
+
+  setTog(el.tBgBox, !!p.bgBox);
+  el.bgBoxOpts.style.display = p.bgBox ? '' : 'none';
+  setVal(el.bgBoxColor, p.bgBoxColor);
+  setNum(el.bgBoxOpacity, el.bgBoxOpacityVal, p.bgBoxOpacity);
+  setNum(el.bgBoxOffsetY, el.bgBoxOffsetYVal, p.bgBoxOffsetY, 'px');
+  setNum(el.bgBoxPad, el.bgBoxPadVal, p.bgBoxPad);
+  setNum(el.bgBoxRadius, el.bgBoxRadiusVal, p.bgBoxRadius);
+
+  setTog(el.tWrap, !!p.wrap);
+  el.wrapOpts.style.display = p.wrap ? '' : 'none';
+  setNum(el.wrapW, el.wrapWVal, p.wrapW, '%');
+
+  // Animation — fall back to the preset's defaults for older files that
+  // predate these controls, so nothing renders blank.
+  const animFallback = (PRESETS[p.preset] && PRESETS[p.preset].anim) || ANIM_FALLBACK;
+  if(p.animEntrance != null) el.animEntrance.value = p.animEntrance;
+  else el.animEntrance.value = animFallback.entrance;
+  setNum(el.animDur, el.animDurVal, p.animDur != null ? p.animDur : animFallback.dur, 'ms');
+  setNum(el.animSlide, el.animSlideVal, p.animSlide != null ? p.animSlide : animFallback.slide, 'px');
+  el.animEase.value = (p.animEase != null) ? p.animEase : animFallback.ease;
+  {
+    const ps = (p.popScale != null) ? p.popScale : animFallback.popScale;
+    el.popScale.value = String(ps);
+    el.popScaleVal.textContent = (ps/100).toFixed(2) + '×';
+  }
+  setNum(el.popDur, el.popDurVal, p.popDur != null ? p.popDur : animFallback.popDur, 'ms');
+
+  setVal(el.exportFmt, p.exportFmt);
+  setVal(el.fps, p.fps);
+  setVal(el.bgMode, p.bgMode);
+  el.renderBtn.textContent = el.exportFmt.value === 'png' ? 'Export PNG Sequence' : 'Export MP4';
+
+  // Custom font handling
+  const doLoadCustomFont = async () => {
+    if(!importFont || !p.customFont || !p.customFont.data) return;
+    try {
+      const bin = atob(p.customFont.data);
+      const buf = new ArrayBuffer(bin.length);
+      const view = new Uint8Array(buf);
+      for(let i=0; i<bin.length; i++) view[i] = bin.charCodeAt(i);
+      const familyName = p.customFont.name || 'Custom Font';
+
+      // If already registered, skip face creation but still ensure bytes
+      // are cached so a subsequent preset save can re-embed the font.
+      if(!customFonts.has(familyName)){
+        const face = new FontFace(familyName, buf);
+        await face.load();
+        document.fonts.add(face);
+        customFonts.add(familyName);
+        loadedFonts.add(`400 "${familyName}"`);
+        loadedFonts.add(`700 "${familyName}"`);
+        loadedFonts.add(`900 "${familyName}"`);
+        el.customFontGroup.style.display = '';
+        const opt = document.createElement('option');
+        opt.value = familyName;
+        opt.textContent = familyName;
+        el.customFontGroup.appendChild(opt);
+      }
+      // CRITICAL: cache the base64 so saving a preset later still embeds
+      // the font, even if the user never re-uploaded it through the UI.
+      customFontBytes[familyName] = p.customFont.data;
+      // Now set the dropdown to it
+      el.fontFamily.value = familyName;
+    } catch(err){
+      console.warn('Custom font load failed:', err);
+      el.presetStatus.textContent = `⚠ Custom font failed: ${err.message}`;
+    }
+  };
+
+  applyAspect(); // resize canvas
+
+  // Recompute groups, optionally pull caption text
+  (async () => {
+    await doLoadCustomFont();
+    await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+
+    if(S.words.length){
+      S.manualEdit = false;
+      regroup();
+      if(importText && typeof p.captionText === 'string' && p.captionText.trim()){
+        el.captionEditor.value = p.captionText;
+        S.manualEdit = true;
+        setEditorBadge(true);
+        applyEditorToGroups();
+      }
+    }
+    draw();
+  })();
+}
+
+// Migrate a legacy v1 preset into the v2 shape. The legacy format uses
+// flat keys and the v1 "mode" field maps roughly to our 3 presets.
+function migrateLegacyPreset(legacy){
+  // Map v1 mode → v2 preset. Legacy modes: karaoke, solid, dim, ghostline,
+  // wordbox. "karaoke" with animMode "fill" is the progressive-reveal
+  // behavior, which maps cleanly onto our new BUILD preset. All other
+  // karaoke variants → row, "solid" → punch, "wordbox" → pill.
+  const modeMap = {
+    karaoke: 'row',
+    dim: 'row',
+    solid: 'punch',
+    wordbox: 'pill',
+    ghostline: 'row',
+  };
+  let preset = modeMap[legacy.mode] || 'row';
+  if(legacy.mode === 'karaoke' && legacy.animMode === 'fill'){
+    preset = 'build';
+  }
+
+  const out = {
+    _wordpunch: true,
+    _version: 2,
+    name: legacy.name || 'Imported v1 preset',
+
+    preset,
+    wpc: legacy.wpc ?? 2,
+    allCaps: !!legacy.caps,
+    vpos: legacy.vpos || 'bottom',
+    ar: legacy.ar || '9:16',
+    size: legacy.size ?? 70,
+    letterSpacing: legacy.letterSpacing ?? 0,
+
+    fontFamily: legacy.font || 'Inter',
+    fontWeight: '900',
+
+    baseColor: legacy.base || '#FFFFFF',
+    hiColor: legacy.hi || '#FFD700',
+    pillTextColor: '#000000',
+
+    // Build preset defaults — for legacy fill mode, the unrevealed words
+    // were typically dim/transparent. Use the v1 base color as the pre-reveal
+    // color at low opacity (so the layout still shows but de-emphasized) if
+    // we're migrating to build.
+    preRevealColor: preset === 'build' ? (legacy.base || '#888888') : '#888888',
+    preRevealOpacity: preset === 'build' ? 30 : 30,
+
+    stroke: !!legacy.stroke,
+    strokeW: legacy.strokeW ?? 6,
+
+    shadow: !!legacy.shadow,
+    shadowBlur: legacy.shadowBlur ?? 12,
+    shadowY: 4,
+
+    bgBox: !!legacy.bg,
+    bgBoxColor: legacy.bgColor || '#000000',
+    bgBoxOpacity: legacy.bgOp ?? 70,
+    bgBoxOffsetY: -10,
+    bgBoxPad: 45,
+    bgBoxRadius: 20,
+
+    wrap: !!legacy.wrapEnabled,
+    wrapW: legacy.wrapWidth ?? 80,
+
+    // Animation didn't exist in v1 — seed from the matched preset's defaults.
+    animEntrance: ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).entrance,
+    animDur:      ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).dur,
+    animSlide:    ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).slide,
+    animEase:     ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).ease,
+    popScale:     ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).popScale,
+    popDur:       ((PRESETS[preset]||{}).anim || ANIM_FALLBACK).popDur,
+
+    exportFmt: legacy.exportFmt || 'mp4',
+    fps: '30',
+    bgMode: 'green',
+
+    captionText: null,
+    customFont: null,
+  };
+
+  // Legacy custom font — pass through. Same shape: {name, ext, data(base64)}
+  if(legacy.customFont && legacy.customFont.data){
+    out.customFont = {
+      name: legacy.customFont.name || 'Custom Font',
+      ext: legacy.customFont.ext || 'ttf',
+      data: legacy.customFont.data,
+    };
+    out.fontFamily = legacy.customFont.name || out.fontFamily;
+  }
+  return out;
+}
+
+// --- Save ---
+// If a custom font is currently active, we can't re-read its bytes from
+// document.fonts — those bytes were consumed when we called FontFace(). To
+// preserve custom-font roundtripping we stash the ArrayBuffer at upload time.
+const customFontBytes = {}; // name -> base64
+
+async function saveCurrentPreset(){
+  const p = buildPreset();
+  // If current font is a custom one and we have its bytes, embed them.
+  if(customFonts.has(el.fontFamily.value) && customFontBytes[el.fontFamily.value]){
+    p.customFont = {
+      name: el.fontFamily.value,
+      ext: 'ttf',
+      data: customFontBytes[el.fontFamily.value],
+    };
+  }
+  const json = JSON.stringify(p, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wordpunch_preset.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  el.presetStatus.textContent = '✓ Preset saved';
+  setTimeout(() => { el.presetStatus.textContent = ''; }, 2500);
+  return json;
+}
+
+// --- Load ---
+let pendingImport = null; // {preset, hasText, hasFont}
+
+function openImportDialog(preset){
+  const hasText = !!(preset.captionText && preset.captionText.trim());
+  const hasFont = !!(preset.customFont && preset.customFont.data);
+  pendingImport = { preset, hasText, hasFont };
+
+  const parts = [];
+  parts.push(`<b>${escapeHtml(preset.name || 'Preset')}</b>`);
+  if(preset._version === 1 || !preset._version){
+    parts.push(`<span style="color:var(--accent-hi)">Legacy v1 — will be migrated</span>`);
+  }
+  parts.push(`Style: ${preset.preset || '—'} · Font: ${preset.fontFamily || '—'}`);
+  if(hasFont) parts.push(`✓ Embedded custom font: ${preset.customFont.name}`);
+  if(hasText) parts.push(`✓ Caption text included`);
+  el.importSummary.innerHTML = parts.join('<br>');
+
+  // If there's no text in the preset, hide that toggle by disabling
+  el.importTextTog.style.opacity = hasText ? '1' : '0.35';
+  el.importTextTog.style.pointerEvents = hasText ? '' : 'none';
+  setTog(el.importTextTog, false); // default off per request
+  el.importFontTog.style.opacity = hasFont ? '1' : '0.35';
+  el.importFontTog.style.pointerEvents = hasFont ? '' : 'none';
+  setTog(el.importFontTog, hasFont);
+
+  el.importDialog.classList.add('show');
+}
+function closeImportDialog(){
+  el.importDialog.classList.remove('show');
+  pendingImport = null;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// Click the two togs in the dialog
+el.importTextTog.addEventListener('click', () => {
+  if(el.importTextTog.style.pointerEvents === 'none') return;
+  setTog(el.importTextTog, !getTog(el.importTextTog));
+});
+el.importFontTog.addEventListener('click', () => {
+  if(el.importFontTog.style.pointerEvents === 'none') return;
+  setTog(el.importFontTog, !getTog(el.importFontTog));
+});
+el.importCancelBtn.addEventListener('click', closeImportDialog);
+el.importApplyBtn.addEventListener('click', () => {
+  if(!pendingImport) { closeImportDialog(); return; }
+  const { preset } = pendingImport;
+  const importText = getTog(el.importTextTog);
+  const importFont = getTog(el.importFontTog);
+  closeImportDialog();
+  const isLegacy = preset._version === 1 || !preset._version;
+  const applied = isLegacy ? migrateLegacyPreset(preset) : preset;
+  applyPreset(applied, { importText, importFont });
+  el.presetStatus.textContent = isLegacy ? '✓ Imported (v1 → v2 migrated)' : '✓ Preset loaded';
+  setTimeout(() => { el.presetStatus.textContent = ''; }, 3000);
+});
+
+function loadPresetFromFile(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const obj = JSON.parse(e.target.result);
+      if(!obj._wordpunch){
+        alert('Not a WordPunch preset file.');
+        return;
+      }
+      openImportDialog(obj);
+    } catch(err){
+      alert('Could not parse preset: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+el.savePresetBtn.addEventListener('click', saveCurrentPreset);
+el.loadPresetBtn.addEventListener('click', () => el.presetFileInput.click());
+el.resetPresetBtn.addEventListener('click', () => {
+  resetToPresetDefaults();
+  el.presetStatus.textContent = `✓ Reset to ${S.preset.toUpperCase()} defaults`;
+  setTimeout(() => { el.presetStatus.textContent = ''; }, 2500);
+});
+el.presetFileInput.addEventListener('change', e => {
+  if(e.target.files[0]) loadPresetFromFile(e.target.files[0]);
+  el.presetFileInput.value = '';
+});
+
+// Render button: runs export then auto-saves the preset alongside output.
+el.renderBtn.textContent = el.exportFmt.value === 'png' ? 'Export PNG Sequence' : 'Export MP4';
+el.renderBtn.addEventListener('click', async () => {
+  if(el.exportFmt.value === 'png') await renderPngZip();
+  else await renderMP4();
+  // Always also download a preset snapshot next to the render
+  try { await saveCurrentPreset(); } catch(err){ console.warn('Preset side-save failed:', err); }
+});
+
+/* ---------- init ---------- */
+applyAspect();
+el.renderBtn.textContent = el.exportFmt.value === 'png' ? 'Export PNG Sequence' : 'Export MP4';
+// Preload the default font so the first render uses real glyphs.
+(async () => {
+  await ensureFontLoaded(el.fontFamily.value, el.fontWeight.value);
+  draw();
+})();
+</script>
+
+
+</body>
+</html>
