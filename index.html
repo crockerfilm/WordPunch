@@ -1564,15 +1564,34 @@ async function renderMP4(){
       video: { codec:'avc', width:w, height:h, frameRate:fps },
       fastStart: 'in-memory',
     });
+    // Capture encoder errors into a variable instead of throwing here.
+    // Throwing inside the WebCodecs error callback does NOT propagate to the
+    // surrounding try/catch — it is swallowed by the browser. The codec then
+    // closes, and the next encoder.encode() call fails with
+    // "Cannot call 'encode' on a closed codec". We surface the real error from
+    // the encode loop / flush instead.
+    let encoderError = null;
     const encoder = new VideoEncoder({
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-      error: (e) => { throw e; },
+      error: (e) => { encoderError = e; },
     });
     encoder.configure({ codec:chosen, width:w, height:h, bitrate, framerate:fps });
 
     el.ovTxt.textContent = 'Encoding MP4…';
 
     for(let i=0; i<totalFrames; i++){
+      if(encoderError) throw encoderError;
+      // Backpressure: if we push frames faster than the codec drains its
+      // queue, the encoder can close itself and every later encode() throws
+      // "Cannot call 'encode' on a closed codec". Wait for the queue to drain
+      // before submitting more work.
+      while(encoder.encodeQueueSize > 30){
+        if(encoderError) throw encoderError;
+        await new Promise(r => setTimeout(r, 0));
+      }
+      if(encoder.state !== 'configured'){
+        throw encoderError || new Error('Encoder closed unexpectedly during encoding');
+      }
       S.time = Math.min(duration, i/fps);
       draw();
       // Correct timestamp math: compute from i/fps each frame in µs.
@@ -1593,7 +1612,9 @@ async function renderMP4(){
       }
     }
 
+    if(encoderError) throw encoderError;
     await encoder.flush();
+    if(encoderError) throw encoderError;
     muxer.finalize();
     encoder.close();
 
